@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "brhp",
+  "version": "0.1.0",
+  "description": "Hexagonal OpenCode plugin scaffold for BRHP",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "oc-plugin": [
+    "server",
+    "tui"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    },
+    "./tui": {
+      "types": "./dist/src/tui/index.d.ts",
+      "import": "./dist/src/tui/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "verify:package": "node ./scripts/verify-package.mjs"
+  },
+  "keywords": [
+    "opencode",
+    "plugin",
+    "typescript",
+    "hexagonal-architecture"
+  ],
+  "license": "MIT",
+  "packageManager": "pnpm@10.22.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": ">=1.4.0 <2"
+  },
+  "dependencies": {
+    "@opentui/core": "0.1.97",
+    "@opentui/solid": "0.1.97",
+    "solid-js": "1.9.11",
+    "yaml": "2.8.3",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@opencode-ai/plugin": "1.4.1",
+    "@types/node": "22.19.17",
+    "typescript": "5.9.3",
+    "vitest": "1.6.1"
+  }
+}
