@@ -1,4 +1,5 @@
 import type { InstructionSource } from '../instructions/instruction.js';
+import type { PlanningSessionStatus } from '../planning/planning-session.js';
 
 export interface SidebarInstructionItem {
   readonly title: string;
@@ -23,4 +24,15 @@ export interface SidebarModel {
   readonly skippedCount: number;
   readonly instructions: readonly SidebarInstructionItem[];
   readonly skippedFiles: readonly SidebarSkippedInstructionItem[];
+  readonly planning?: SidebarPlanningSummary;
+}
+
+export interface SidebarPlanningSummary {
+  readonly active: boolean;
+  readonly sessionId?: string;
+  readonly status?: PlanningSessionStatus;
+  readonly problem?: string;
+  readonly scopeCount?: number;
+  readonly nodeCount?: number;
+  readonly edgeCount?: number;
 }

@@ -2,15 +2,25 @@
 import type { TuiPlugin } from '@opencode-ai/plugin/tui';
 
 import { buildSidebarModel } from '../application/use-cases/build-sidebar-model.js';
+import { createPlannerRuntimeForWorktree } from './create-planner-runtime.js';
 import { createInstructionInventoryLoader } from './create-instruction-inventory-loader.js';
 import { emitSidebarRefresh } from '../tui/state/sidebar-refresh.js';
 import { SidebarContent } from '../tui/components/sidebar-content.js';
 
 export const createTuiPlugin = (): TuiPlugin => {
   return async api => {
-    const loadModel = async (projectDirectory: string) => {
+    const planner = await createPlannerRuntimeForWorktree(
+      api.state.path.worktree || api.state.path.directory
+    );
+
+    const loadModel = async (projectDirectory: string, sessionId: string) => {
       const inventory = await createInstructionInventoryLoader(projectDirectory)();
-      return buildSidebarModel(inventory);
+      const planningState = await planner.runtime.getActive({
+        worktreePath: projectDirectory,
+        opencodeSessionId: sessionId,
+      });
+
+      return buildSidebarModel(inventory, planningState);
     };
 
     const unregisterSlots = api.slots.register({
@@ -44,6 +54,7 @@ export const createTuiPlugin = (): TuiPlugin => {
     ]);
 
     api.lifecycle.onDispose(() => {
+      planner.close();
       maybeDispose(unregisterCommand);
       maybeDispose(unregisterSlots);
     });

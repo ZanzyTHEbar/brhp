@@ -9,7 +9,7 @@ interface SidebarContentProps {
   readonly api: TuiPluginApi;
   readonly theme: TuiTheme;
   readonly sessionId: string;
-  readonly loadModel: (projectDirectory: string) => Promise<SidebarModel>;
+  readonly loadModel: (projectDirectory: string, sessionId: string) => Promise<SidebarModel>;
 }
 
 type LoadState = 'loading' | 'ready' | 'error';
@@ -23,7 +23,10 @@ export function SidebarContent(props: SidebarContentProps) {
 
     try {
       setModel(
-        await props.loadModel(props.api.state.path.worktree || props.api.state.path.directory)
+        await props.loadModel(
+          props.api.state.path.worktree || props.api.state.path.directory,
+          props.sessionId
+        )
       );
       setState('ready');
     } catch {
@@ -84,6 +87,32 @@ export function SidebarContent(props: SidebarContentProps) {
                 </text>
                 <text fg={colors().textMuted}>Global: {currentModel.globalDirectory}</text>
                 <text fg={colors().textMuted}>Project: {currentModel.projectDirectory}</text>
+
+                <Show
+                  when={currentModel.planning?.active}
+                  fallback={<text fg={colors().textMuted}>Planning: No active planning session</text>}
+                >
+                  <box flexDirection="column">
+                    <text fg={colors().textMuted}>
+                      Planning session: {currentModel.planning?.sessionId}
+                    </text>
+                    <text fg={colors().textMuted}>
+                      Planning status: {currentModel.planning?.status}
+                    </text>
+                    <Show when={currentModel.planning?.problem}>
+                      <text fg={colors().textMuted}>
+                        Problem: {currentModel.planning?.problem}
+                      </text>
+                    </Show>
+                    <Show when={currentModel.planning?.scopeCount !== undefined}>
+                      <text fg={colors().textMuted}>
+                        Graph: {currentModel.planning?.scopeCount} scopes,{' '}
+                        {currentModel.planning?.nodeCount} nodes, {currentModel.planning?.edgeCount}{' '}
+                        edges
+                      </text>
+                    </Show>
+                  </box>
+                </Show>
 
                 <Show
                   when={currentModel.instructions.length > 0}

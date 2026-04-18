@@ -18,7 +18,7 @@ describe('createServerPluginHooks', () => {
     expect(config.command.existing).toEqual({ template: 'x', description: 'y' });
     expect(config.command.brhp).toEqual({
       template: '',
-      description: 'Show BRHP plugin status, paths, and loaded instruction summary.',
+      description: 'Inspect or manage the active BRHP planning session for this OpenCode chat.',
     });
   });
 
@@ -131,6 +131,87 @@ describe('createServerPluginHooks', () => {
       expect(output.system[1]).toContain('# BRHP Instructions');
       expect(output.system[1]).toContain('## Global: Baseline');
       expect(output.system[1]).toContain('Use explicit steps.');
+    } finally {
+      if (originalConfigDirectory === undefined) {
+        delete process.env.OPENCODE_CONFIG_DIR;
+      } else {
+        process.env.OPENCODE_CONFIG_DIR = originalConfigDirectory;
+      }
+
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('creates and resumes planning sessions through /brhp subcommands', async () => {
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'brhp-server-planning-'));
+    const configRoot = path.join(tempRoot, 'config');
+    const globalDirectory = path.join(configRoot, 'brhp', 'instructions');
+    const projectDirectory = path.join(tempRoot, 'project');
+    const projectInstructions = path.join(projectDirectory, '.opencode', 'brhp', 'instructions');
+
+    await mkdir(globalDirectory, { recursive: true });
+    await mkdir(projectInstructions, { recursive: true });
+    await writeFile(
+      path.join(globalDirectory, 'invariants.md'),
+      ['# BRHP invariants', '', '- Keep all graph changes durable', '- Prefer explicit scopes'].join(
+        '\n'
+      )
+    );
+
+    const originalConfigDirectory = process.env.OPENCODE_CONFIG_DIR;
+    process.env.OPENCODE_CONFIG_DIR = configRoot;
+
+    try {
+      const hooks = await createServerPluginHooks(createPluginInput(projectDirectory));
+      const createOutput = {
+        parts: [{ type: 'text', text: 'replace me' }],
+      };
+
+      await hooks['command.execute.before']?.(
+        {
+          command: 'brhp',
+          sessionID: 'chat-a',
+          arguments: 'plan formalize the BRHP runtime kernel',
+        },
+        createOutput as never
+      );
+
+      const createdText = String(createOutput.parts[0]?.text ?? '');
+      const createdIdMatch = createdText.match(/Created session ([0-9a-f-]+)/i);
+      const createdSessionId = createdIdMatch?.[1];
+
+      expect(createdText).toContain('Created session');
+      expect(createdSessionId).toBeTruthy();
+
+      const systemOutput = { system: [] as string[] };
+
+      await hooks['experimental.chat.system.transform']?.(
+        {
+          sessionID: 'chat-a',
+          model: {} as never,
+        },
+        systemOutput as never
+      );
+
+      expect(systemOutput.system.join('\n')).toContain('Keep all graph changes durable');
+
+      const resumeOutput = {
+        parts: [{ type: 'text', text: 'replace me' }],
+      };
+
+      await hooks['command.execute.before']?.(
+        {
+          command: 'brhp',
+          sessionID: 'chat-b',
+          arguments: `resume ${createdSessionId}`,
+        },
+        resumeOutput as never
+      );
+
+      const resumedText = String(resumeOutput.parts[0]?.text ?? '');
+
+      expect(resumedText).toContain(`Resumed session ${createdSessionId}`);
+      expect(resumedText).toContain(`- Active: ${createdSessionId}`);
     } finally {
       if (originalConfigDirectory === undefined) {
         delete process.env.OPENCODE_CONFIG_DIR;
