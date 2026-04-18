@@ -1,0 +1,19 @@
+version: "2"
+
+sql:
+  - engine: sqlite
+    schema: db/sqlc/schema.sql
+    queries: db/queries
+    rules:
+      - sqlite-delete-must-have-where
+      - sqlite-one-select-must-limit
+
+rules:
+  - name: sqlite-delete-must-have-where
+    message: "DELETE statements in BRHP planner SQL must include WHERE"
+    rule: |
+      query.sql.contains("DELETE") && !query.sql.contains("WHERE")
+  - name: sqlite-one-select-must-limit
+    message: ":one SELECT queries in BRHP planner SQL must include LIMIT 1"
+    rule: |
+      query.cmd == "one" && query.sql.trim().startsWith("SELECT") && !query.sql.contains("LIMIT 1")
