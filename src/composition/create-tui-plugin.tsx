@@ -3,19 +3,28 @@ import type { TuiPlugin } from '@opencode-ai/plugin/tui';
 
 import { buildSidebarModel } from '../application/use-cases/build-sidebar-model.js';
 import { createPlannerRuntimeForWorktree } from './create-planner-runtime.js';
+import { createPlannerRuntimeOwner } from './create-planner-runtime-owner.js';
 import { createInstructionInventoryLoader } from './create-instruction-inventory-loader.js';
 import { emitSidebarRefresh } from '../tui/state/sidebar-refresh.js';
 import { SidebarContent } from '../tui/components/sidebar-content.js';
+import type { PlannerRuntimeOwner } from './create-planner-runtime-owner.js';
 
-export const createTuiPlugin = (): TuiPlugin => {
+export interface CreateTuiPluginOptions {
+  readonly createOwner?: (worktreePath: string) => PlannerRuntimeOwner;
+}
+
+export const createTuiPlugin = (options: CreateTuiPluginOptions = {}): TuiPlugin => {
   return async api => {
-    const planner = await createPlannerRuntimeForWorktree(
-      api.state.path.worktree || api.state.path.directory
-    );
+    const projectDirectory = api.state.path.worktree || api.state.path.directory;
+    const owner =
+      options.createOwner?.(projectDirectory) ??
+      createPlannerRuntimeOwner({
+        createHandle: () => createPlannerRuntimeForWorktree(projectDirectory),
+      });
 
     const loadModel = async (projectDirectory: string, sessionId: string) => {
       const inventory = await createInstructionInventoryLoader(projectDirectory)();
-      const planningState = await planner.runtime.getActive({
+      const planningState = await (await owner.getRuntime()).getActive({
         worktreePath: projectDirectory,
         opencodeSessionId: sessionId,
       });
@@ -23,41 +32,56 @@ export const createTuiPlugin = (): TuiPlugin => {
       return buildSidebarModel(inventory, planningState);
     };
 
-    const unregisterSlots = api.slots.register({
-      order: 300,
-      slots: {
-        sidebar_content: (context, props) => (
-          <SidebarContent
-            api={api}
-            theme={context.theme}
-            sessionId={props.session_id}
-            loadModel={loadModel}
-          />
-        ),
-      },
-    });
+    let unregisterSlots: unknown;
+    let unregisterCommand: unknown;
 
-    const unregisterCommand = api.command.register(() => [
-      {
-        title: 'Refresh BRHP sidebar',
-        value: 'brhp.refresh',
-        description: 'Reload instruction inventory from disk',
-        category: 'Plugins',
-        onSelect: () => {
-          emitSidebarRefresh();
-          api.ui.toast({
-            variant: 'info',
-            message: 'BRHP sidebar refresh requested',
-          });
+    try {
+      unregisterSlots = api.slots.register({
+        order: 300,
+        slots: {
+          sidebar_content: (context, props) => (
+            <SidebarContent
+              api={api}
+              theme={context.theme}
+              sessionId={props.session_id}
+              loadModel={loadModel}
+            />
+          ),
         },
-      },
-    ]);
+      });
 
-    api.lifecycle.onDispose(() => {
-      planner.close();
+      unregisterCommand = api.command.register(() => [
+        {
+          title: 'Refresh BRHP sidebar',
+          value: 'brhp.refresh',
+          description: 'Reload instruction inventory from disk',
+          category: 'Plugins',
+          onSelect: () => {
+            emitSidebarRefresh();
+            api.ui.toast({
+              variant: 'info',
+              message: 'BRHP sidebar refresh requested',
+            });
+          },
+        },
+      ]);
+
+      api.lifecycle.onDispose(() => {
+        void owner.dispose().catch(() => {
+          api.ui.toast({
+            variant: 'warning',
+            message: 'BRHP planner runtime failed to close cleanly',
+          });
+        });
+        maybeDispose(unregisterCommand);
+        maybeDispose(unregisterSlots);
+      });
+    } catch (error) {
       maybeDispose(unregisterCommand);
       maybeDispose(unregisterSlots);
-    });
+      await owner.dispose();
+      throw error;
+    }
   };
 };
 

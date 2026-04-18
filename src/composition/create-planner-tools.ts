@@ -6,7 +6,11 @@ import { BRHP_TOOL_IDS } from '../domain/planning/planner-tool.js';
 type PlannerToolMap = Record<string, ReturnType<typeof tool>>;
 
 export function createPlannerTools(
-  getRuntime: (sessionID: string, worktreePath: string) => Promise<PlannerRuntime>
+  withRuntime: <Result>(
+    sessionID: string,
+    worktreePath: string,
+    execute: (runtime: PlannerRuntime) => Promise<Result>
+  ) => Promise<Result>
 ): PlannerToolMap {
   return {
     [BRHP_TOOL_IDS.getActivePlan]: tool({
@@ -21,11 +25,15 @@ export function createPlannerTools(
           },
         });
 
-        const runtime = await getRuntime(context.sessionID, context.worktree || context.directory);
-        const state = await runtime.getActive({
-          worktreePath: context.worktree || context.directory,
-          opencodeSessionId: context.sessionID,
-        });
+        const state = await withRuntime(
+          context.sessionID,
+          context.worktree || context.directory,
+          runtime =>
+            runtime.getActive({
+              worktreePath: context.worktree || context.directory,
+              opencodeSessionId: context.sessionID,
+            })
+        );
 
         return JSON.stringify(
           state ?? {
@@ -68,21 +76,25 @@ export function createPlannerTools(
           },
         });
 
-        const runtime = await getRuntime(context.sessionID, context.worktree || context.directory);
-        const mutation = await runtime.decomposeNode(
-          {
-            worktreePath: context.worktree || context.directory,
-            opencodeSessionId: context.sessionID,
-          },
-          {
-            nodeId: args.nodeId,
-            children: args.children.map(child => ({
-              title: child.title,
-              problemStatement: child.problemStatement,
-              category: child.category,
-              ...(child.rationale ? { rationale: child.rationale } : {}),
-            })),
-          }
+        const mutation = await withRuntime(
+          context.sessionID,
+          context.worktree || context.directory,
+          runtime =>
+            runtime.decomposeNode(
+              {
+                worktreePath: context.worktree || context.directory,
+                opencodeSessionId: context.sessionID,
+              },
+              {
+                nodeId: args.nodeId,
+                children: args.children.map(child => ({
+                  title: child.title,
+                  problemStatement: child.problemStatement,
+                  category: child.category,
+                  ...(child.rationale ? { rationale: child.rationale } : {}),
+                })),
+              }
+            )
         );
 
         return JSON.stringify(mutation, null, 2);
@@ -114,22 +126,26 @@ export function createPlannerTools(
           },
         });
 
-        const runtime = await getRuntime(context.sessionID, context.worktree || context.directory);
-        const mutation = await runtime.recordValidation(
-          {
-            worktreePath: context.worktree || context.directory,
-            opencodeSessionId: context.sessionID,
-          },
-          {
-            clauses: args.clauses.map(clause => ({
-              ...(clause.id ? { id: clause.id } : {}),
-              kind: clause.kind,
-              blocking: clause.blocking,
-              description: clause.description,
-              status: clause.status,
-              ...(clause.message ? { message: clause.message } : {}),
-            })),
-          }
+        const mutation = await withRuntime(
+          context.sessionID,
+          context.worktree || context.directory,
+          runtime =>
+            runtime.recordValidation(
+              {
+                worktreePath: context.worktree || context.directory,
+                opencodeSessionId: context.sessionID,
+              },
+              {
+                clauses: args.clauses.map(clause => ({
+                  ...(clause.id ? { id: clause.id } : {}),
+                  kind: clause.kind,
+                  blocking: clause.blocking,
+                  description: clause.description,
+                  status: clause.status,
+                  ...(clause.message ? { message: clause.message } : {}),
+                })),
+              }
+            )
         );
 
         return JSON.stringify(mutation, null, 2);

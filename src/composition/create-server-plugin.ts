@@ -3,8 +3,9 @@ import type { Hooks, PluginInput } from '@opencode-ai/plugin';
 import { parseBrhpCommand } from '../application/use-cases/parse-brhp-command.js';
 import { buildSlashCommandResponse } from '../application/use-cases/build-slash-command-response.js';
 import { buildSystemPromptSection } from '../application/use-cases/build-system-prompt-section.js';
+import type { PlannerRuntime } from '../application/services/planner-runtime.js';
 import type { PlannerRuntimeMutation } from '../application/services/planner-runtime.js';
-import { createPlannerRuntimeForWorktree } from './create-planner-runtime.js';
+import { withPlannerRuntimeForWorktree } from './create-planner-runtime.js';
 import { createPlannerTools } from './create-planner-tools.js';
 import { createInstructionInventoryLoader } from './create-instruction-inventory-loader.js';
 import {
@@ -12,23 +13,35 @@ import {
   BRHP_COMMAND_NAME,
 } from '../domain/slash-command/brhp-command.js';
 
+export interface ServerPlannerRuntimeAccess {
+  withRuntime<Result>(
+    sessionID: string,
+    worktreePath: string,
+    execute: (runtime: PlannerRuntime) => Promise<Result>
+  ): Promise<Result>;
+}
+
 export async function createServerPluginHooks(
   input: PluginInput
 ): Promise<Hooks> {
+  return createServerPluginHooksWithRuntimeAccess(input, {
+    async withRuntime(_sessionID, worktreePath, execute) {
+      return withPlannerRuntimeForWorktree(worktreePath, execute);
+    },
+  });
+}
+
+export async function createServerPluginHooksWithRuntimeAccess(
+  input: PluginInput,
+  runtimeAccess: ServerPlannerRuntimeAccess
+): Promise<Hooks> {
   const projectDirectory = input.worktree || input.directory;
   const loadInventory = createInstructionInventoryLoader(projectDirectory);
-  let plannerPromise:
-    | Promise<Awaited<ReturnType<typeof createPlannerRuntimeForWorktree>>>
-    | undefined;
-
-  const getPlanner = async () => {
-    plannerPromise ??= createPlannerRuntimeForWorktree(projectDirectory);
-    return plannerPromise;
-  };
-  const getRuntime = async () => (await getPlanner()).runtime;
 
   return {
-    tool: createPlannerTools(async () => getRuntime()),
+    tool: createPlannerTools((sessionID, worktreePath, execute) =>
+      runtimeAccess.withRuntime(sessionID, worktreePath, execute)
+    ),
     config: async opencodeConfig => {
       opencodeConfig.command ??= {};
       opencodeConfig.command[BRHP_COMMAND_NAME] = {
@@ -58,23 +71,30 @@ export async function createServerPluginHooks(
         return;
       }
 
-      const planner = await getPlanner();
       switch (parsed.command.kind) {
         case 'status':
           break;
-        case 'plan':
-          mutation = await planner.runtime.create(
-            context,
-            inventory,
-            parsed.command.problemStatement
+        case 'plan': {
+          const { problemStatement } = parsed.command;
+          mutation = await runtimeAccess.withRuntime(commandInput.sessionID, projectDirectory, runtime =>
+            runtime.create(context, inventory, problemStatement)
           );
           break;
-        case 'resume':
-          mutation = await planner.runtime.resume(context, parsed.command.sessionId);
+        }
+        case 'resume': {
+          const { sessionId } = parsed.command;
+          mutation = await runtimeAccess.withRuntime(commandInput.sessionID, projectDirectory, runtime =>
+            runtime.resume(context, sessionId)
+          );
           break;
+        }
       }
 
-      const activePlanningState = await planner.runtime.getActive(context);
+      const activePlanningState = await runtimeAccess.withRuntime(
+        commandInput.sessionID,
+        projectDirectory,
+        runtime => runtime.getActive(context)
+      );
 
       output.parts.length = 0;
       output.parts.push({
@@ -87,11 +107,14 @@ export async function createServerPluginHooks(
     },
     'experimental.chat.system.transform': async (transformInput, output) => {
       const inventory = await loadInventory();
-      const planningState = transformInput.sessionID
-        ? await (await getPlanner()).runtime.getActive({
-            worktreePath: projectDirectory,
-            opencodeSessionId: transformInput.sessionID,
-          })
+      const sessionID = transformInput.sessionID;
+      const planningState = sessionID
+        ? await runtimeAccess.withRuntime(sessionID, projectDirectory, runtime =>
+            runtime.getActive({
+              worktreePath: projectDirectory,
+              opencodeSessionId: sessionID,
+            })
+          )
         : null;
       const section = buildSystemPromptSection(inventory, planningState);
 

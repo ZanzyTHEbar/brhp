@@ -4,7 +4,11 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { createServerPluginHooks } from '../../src/composition/create-server-plugin.js';
+import {
+  createServerPluginHooks,
+  createServerPluginHooksWithRuntimeAccess,
+} from '../../src/composition/create-server-plugin.js';
+import type { PlannerRuntime } from '../../src/application/services/planner-runtime.js';
 
 describe('createServerPluginHooks', () => {
   it('registers the /brhp command in config', async () => {
@@ -346,6 +350,162 @@ describe('createServerPluginHooks', () => {
 
       await rm(tempRoot, { recursive: true, force: true });
     }
+  });
+
+  it('reuses one planner owner across command, tool, and system hooks', async () => {
+    let getRuntimeCalls = 0;
+    const runtime = {
+      async getActive() {
+        return null;
+      },
+      async create() {
+        throw new Error('not used');
+      },
+      async resume() {
+        throw new Error('not used');
+      },
+      async decomposeNode() {
+        throw new Error('not used');
+      },
+      async recordValidation() {
+        throw new Error('not used');
+      },
+    };
+    const hooks = await createServerPluginHooksWithRuntimeAccess(createPluginInput('/repo'), {
+      async withRuntime(_sessionID, _worktreePath, execute) {
+        getRuntimeCalls += 1;
+        return execute(runtime as never);
+      },
+    });
+
+    await hooks['command.execute.before']?.(
+      {
+        command: 'brhp',
+        sessionID: 'chat-owner',
+        arguments: '',
+      },
+      { parts: [] } as never
+    );
+
+    await hooks.tool?.brhp_get_active_plan?.execute(
+      {},
+      {
+        sessionID: 'chat-owner',
+        messageID: 'message-owner',
+        agent: 'assistant',
+        directory: '/repo',
+        worktree: '/repo',
+        abort: new AbortController().signal,
+        metadata() {},
+        ask: async () => {},
+      } as never
+    );
+
+    await hooks['experimental.chat.system.transform']?.(
+      {
+        sessionID: 'chat-owner',
+        model: {} as never,
+      },
+      { system: [] } as never
+    );
+
+    expect(getRuntimeCalls).toBe(3);
+  });
+
+  it('retries planner initialization after a failed server-side attempt', async () => {
+    let factoryCalls = 0;
+    const hooks = await createServerPluginHooksWithRuntimeAccess(createPluginInput('/repo'), {
+      async withRuntime(_sessionID, _worktreePath, execute) {
+        factoryCalls += 1;
+        if (factoryCalls === 1) {
+          throw new Error('open failed');
+        }
+
+        return execute({
+          async getActive() {
+            return null;
+          },
+          async create() {
+            throw new Error('not used');
+          },
+          async resume() {
+            throw new Error('not used');
+          },
+          async decomposeNode() {
+            throw new Error('not used');
+          },
+          async recordValidation() {
+            throw new Error('not used');
+          },
+        } as never);
+      },
+    });
+
+    await expect(
+      hooks['command.execute.before']?.(
+        {
+          command: 'brhp',
+          sessionID: 'chat-retry',
+          arguments: '',
+        },
+        { parts: [] } as never
+      )
+    ).rejects.toThrow('open failed');
+
+    await expect(
+      hooks['command.execute.before']?.(
+        {
+          command: 'brhp',
+          sessionID: 'chat-retry',
+          arguments: '',
+        },
+        { parts: [] } as never
+      )
+    ).resolves.toBeUndefined();
+    expect(factoryCalls).toBe(2);
+  });
+
+  it('closes the server runtime after each operation even when the operation fails', async () => {
+    const events: string[] = [];
+    const hooks = await createServerPluginHooksWithRuntimeAccess(createPluginInput('/repo'), {
+      async withRuntime(_sessionID, _worktreePath, execute) {
+        events.push('open');
+        try {
+          return await execute({
+            async getActive() {
+              return null;
+            },
+            async create() {
+              throw new Error('mutation failed');
+            },
+            async resume() {
+              throw new Error('not used');
+            },
+            async decomposeNode() {
+              throw new Error('not used');
+            },
+            async recordValidation() {
+              throw new Error('not used');
+            },
+          } as never);
+        } finally {
+          events.push('close');
+        }
+      },
+    });
+
+    await expect(
+      hooks['command.execute.before']?.(
+        {
+          command: 'brhp',
+          sessionID: 'chat-close',
+          arguments: 'plan build server lifecycle tests',
+        },
+        { parts: [] } as never
+      )
+    ).rejects.toThrow('mutation failed');
+
+    expect(events).toEqual(['open', 'close']);
   });
 });
 

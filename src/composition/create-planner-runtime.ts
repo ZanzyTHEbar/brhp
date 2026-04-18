@@ -16,6 +16,11 @@ class UuidIdGenerator {
   }
 }
 
+export interface PlannerRuntimeHandle {
+  readonly runtime: ReturnType<typeof createPlannerRuntime>;
+  close(): void;
+}
+
 export async function createPlannerRuntimeForWorktree(worktreePath: string) {
   const database = await openPlanningDatabase({ worktreePath });
   const store = new LibsqlPlanningSessionStore(database.client);
@@ -30,10 +35,18 @@ export async function createPlannerRuntimeForWorktree(worktreePath: string) {
     close() {
       database.close();
     },
-  };
+  } satisfies PlannerRuntimeHandle;
 }
 
-interface PlannerRuntimeHandle {
-  readonly runtime: ReturnType<typeof createPlannerRuntime>;
-  close(): void;
+export async function withPlannerRuntimeForWorktree<Result>(
+  worktreePath: string,
+  execute: (runtime: ReturnType<typeof createPlannerRuntime>) => Promise<Result>
+): Promise<Result> {
+  const handle = await createPlannerRuntimeForWorktree(worktreePath);
+
+  try {
+    return await execute(handle.runtime);
+  } finally {
+    handle.close();
+  }
 }
