@@ -65,9 +65,9 @@ The policy state is:
 Π_t = (I_t, P_t, Λ_t)
 ```
 
-- `I_t` is the active instruction set loaded from OpenCode/global/project policy documents.
-- `P_t` is the explicit policy document set.
-- `Λ_t` is the invariant set that must remain true throughout planning.
+- `I_t` is the active instruction set loaded from the configured global/project instruction directories.
+- `P_t` is the explicit policy document set. In the current committed runtime this set is reserved for future provenance work and is currently empty for runtime-created sessions.
+- `Λ_t` is the invariant set that must remain true throughout planning. In the current committed runtime invariants are heuristically derived from loaded instruction content.
 
 ### Summary state
 
@@ -133,11 +133,16 @@ Global entropy is the frontier-weighted aggregate:
 H_g(F_t) = Σ_x P_t(x | F_t) H_n(x)
 ```
 
-Entropy drift is treated as a magnitude:
+Entropy drift is stored as a signed delta:
 
 ```text
-ΔH_g = |H_g(t) - H_g(t-1)|
+ΔH_g = H_g(t) - H_g(t-1)
 ```
+
+Positive drift means the frontier became more entropic.
+Negative drift means the frontier became less entropic.
+
+Convergence thresholds apply to the magnitude of the drift, not its sign.
 
 ## Validation
 
@@ -160,10 +165,10 @@ Blocking clauses must be explicitly passed for `SAT(Φ_Q)` to hold.
 
 ## Convergence
 
-Planning converges only when entropy, drift, frontier stability, and validation all clear their thresholds:
+Planning converges only when entropy, the magnitude of drift, frontier stability, and validation all clear their thresholds:
 
 ```text
-Converged_t = (H_g ≤ ε_H) ∧ (ΔH_g ≤ ε_Δ) ∧ (Ξ_t ≥ ε_Ξ) ∧ (blocking findings = 0)
+Converged_t = (H_g ≤ ε_H) ∧ (|ΔH_g| ≤ ε_Δ) ∧ (Ξ_t ≥ ε_Ξ) ∧ (blocking findings = 0)
 ```
 
 Pending blocking clauses also prevent convergence.
@@ -179,5 +184,8 @@ These formulas map directly to code in:
 - `src/domain/planning/plan-edge.ts`
 - `src/domain/planning/frontier.ts`
 - `src/domain/planning/validation.ts`
+- `src/application/use-cases/recompute-active-frontier.ts`
+- `src/application/use-cases/record-active-scope-validation.ts`
+- `src/application/use-cases/decompose-planning-node.ts`
 
 The next implementation batches will map the same formal objects onto the local `libsql` relational kernel and OpenCode server/TUI integrations.

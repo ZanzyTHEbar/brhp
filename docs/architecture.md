@@ -29,6 +29,7 @@ The application layer owns the use cases:
 - build the TUI sidebar model
 - seed BRHP planning sessions against domain contracts
 - parse `/brhp` subcommands and drive planner runtime behavior
+- derive frontier updates and runtime convergence from current planner state
 
 It depends on abstractions, not Node or OpenCode APIs directly.
 
@@ -75,7 +76,15 @@ The current codebase now includes the domain foundations for:
 - conjunctive validation
 - convergence assessment
 
-Those types and pure functions are intentionally isolated so they can be reused by the upcoming `libsql` + `sqlc` persistence layer and the OpenCode server/TUI integration work.
+Those types and pure functions are intentionally isolated so they can be reused by the `libsql` persistence layer and the OpenCode server/TUI integration work.
+
+Current runtime behavior derived from that model:
+
+- validation persists deterministic verdicts for the active scope
+- frontier reselection is recomputed after decomposition and validation
+- convergence is derived from current frontier entropy, drift magnitude, stability, and validation findings
+- decomposition invalidates convergence and returns the session to `exploring`
+- loaded instruction content currently seeds planner invariants; explicit policy-document provenance remains reserved for a later batch
 
 ### Entry modules
 

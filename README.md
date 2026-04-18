@@ -23,6 +23,7 @@ The repository is being built in sequenced batches. The current baseline is buil
 - system prompt injection through `experimental.chat.system.transform`
 - TUI sidebar scaffold on `sidebar_content`
 - formal BRHP planning domain model with explicit frontier, entropy, validation, and convergence math
+- instruction-derived invariants seeded into planning sessions
 - package sanity check script
 - unit tests for instruction loading, prompt building, slash command behavior, and BRHP formalism primitives
 
@@ -113,3 +114,5 @@ Example TUI config:
 See [docs/architecture.md](./docs/architecture.md).
 
 For the mathematical BRHP model, see [docs/formal-spec.md](./docs/formal-spec.md).
+
+For the curated active backlog and deferred advanced roadmap, see [todo.md](./todo.md).
