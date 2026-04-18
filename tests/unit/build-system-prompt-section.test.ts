@@ -104,6 +104,9 @@ describe('buildSystemPromptSection', () => {
     expect(section).toContain('Session ID: session-1');
     expect(section).toContain('Status: exploring');
     expect(section).toContain('Problem: Formalize BRHP');
+    expect(section).toContain('brhp_get_active_plan');
+    expect(section).toContain('brhp_decompose_node');
+    expect(section).toContain('First call brhp_get_active_plan');
     expect(section).toContain('Invariants:');
     expect(section).toContain('- Keep changes durable');
   });

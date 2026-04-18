@@ -1,10 +1,12 @@
 import type { ClockPort } from '../ports/clock-port.js';
 import type { IdGeneratorPort } from '../ports/id-generator-port.js';
 import type {
+  PlanningNodeDecompositionPatch,
   PlanningSessionContext,
   PlanningSessionQueryPort,
   PlanningSessionStorePort,
 } from '../ports/planning-session-store-port.js';
+import { decomposePlanningNode, type DecomposePlanningNodeChildInput } from '../use-cases/decompose-planning-node.js';
 import { createPlanningSessionSeed } from '../use-cases/create-planning-session-seed.js';
 import type { InstructionInventory } from '../../domain/instructions/instruction.js';
 import type { PlanningState } from '../../domain/planning/planning-session.js';
@@ -13,7 +15,13 @@ export type PlannerRuntimeMutation =
   | { readonly kind: 'none' }
   | { readonly kind: 'created'; readonly state: PlanningState }
   | { readonly kind: 'resumed'; readonly state: PlanningState }
-  | { readonly kind: 'resume-not-found'; readonly sessionId: string };
+  | { readonly kind: 'resume-not-found'; readonly sessionId: string }
+  | { readonly kind: 'decomposed'; readonly state: PlanningState; readonly nodeId: string };
+
+export interface DecomposePlanningNodeRequest {
+  readonly nodeId: string;
+  readonly children: readonly DecomposePlanningNodeChildInput[];
+}
 
 export interface PlannerRuntime {
   getActive(context: PlanningSessionContext): Promise<PlanningState | null>;
@@ -25,6 +33,10 @@ export interface PlannerRuntime {
   resume(
     context: PlanningSessionContext,
     sessionId: string
+  ): Promise<PlannerRuntimeMutation>;
+  decomposeNode(
+    context: PlanningSessionContext,
+    request: DecomposePlanningNodeRequest
   ): Promise<PlannerRuntimeMutation>;
 }
 
@@ -84,6 +96,36 @@ export function createPlannerRuntime(input: CreatePlannerRuntimeInput): PlannerR
       return {
         kind: 'resumed',
         state,
+      };
+    },
+
+    async decomposeNode(context, request) {
+      const activeState = await input.store.getActiveSession(context);
+
+      if (!activeState) {
+        throw new Error('No active BRHP planning session exists for this OpenCode chat');
+      }
+
+      const patch = decomposePlanningNode({
+        clock: input.clock,
+        ids: input.ids,
+        state: activeState,
+        nodeId: request.nodeId,
+        children: request.children,
+      });
+
+      await input.store.applyNodeDecomposition(patch);
+
+      const state = await input.store.getActiveSession(context);
+
+      if (!state) {
+        throw new Error('Planner decomposition completed but the active session could not be reloaded');
+      }
+
+      return {
+        kind: 'decomposed',
+        state,
+        nodeId: patch.updatedParentNode.id,
       };
     },
   };

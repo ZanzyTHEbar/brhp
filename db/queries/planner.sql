@@ -15,6 +15,7 @@ INSERT INTO planner_sessions (
     status,
     active_scope_id,
     root_node_id,
+    revision,
     temperature,
     top_p,
     temperature_floor,
@@ -40,6 +41,7 @@ INSERT INTO planner_sessions (
     sqlc.arg(status),
     sqlc.arg(active_scope_id),
     sqlc.arg(root_node_id),
+    sqlc.arg(revision),
     sqlc.arg(temperature),
     sqlc.arg(top_p),
     sqlc.arg(temperature_floor),
@@ -229,6 +231,30 @@ INSERT INTO planner_events (
     sqlc.arg(occurred_at)
 );
 
+-- name: UpdatePlanningNodeStatus :exec
+UPDATE planner_nodes
+SET status = sqlc.arg(status),
+    updated_at = sqlc.arg(updated_at)
+WHERE session_id = sqlc.arg(session_id)
+  AND id = sqlc.arg(id)
+  AND status = sqlc.arg(expected_status)
+  AND updated_at = sqlc.arg(expected_updated_at);
+
+-- name: UpdatePlanningSessionSummary :exec
+UPDATE planner_sessions
+SET revision = sqlc.arg(next_revision),
+    status = sqlc.arg(status),
+    global_entropy = sqlc.arg(global_entropy),
+    entropy_drift = sqlc.arg(entropy_drift),
+    frontier_stability = sqlc.arg(frontier_stability),
+    blocking_findings = sqlc.arg(blocking_findings),
+    pending_blocking_clauses = sqlc.arg(pending_blocking_clauses),
+    converged = sqlc.arg(converged),
+    last_frontier_updated_at = sqlc.arg(last_frontier_updated_at),
+    updated_at = sqlc.arg(updated_at)
+WHERE id = sqlc.arg(id)
+  AND revision = sqlc.arg(expected_revision);
+
 -- name: ListPlanningSessionsByWorktree :many
 SELECT id,
        worktree_path,
@@ -237,6 +263,7 @@ SELECT id,
        status,
        active_scope_id,
        root_node_id,
+       revision,
        temperature,
        top_p,
        temperature_floor,
@@ -266,6 +293,7 @@ SELECT id,
        status,
        active_scope_id,
        root_node_id,
+       revision,
        temperature,
        top_p,
        temperature_floor,
@@ -298,6 +326,7 @@ SELECT id,
        status,
        active_scope_id,
        root_node_id,
+       revision,
        temperature,
        top_p,
        temperature_floor,

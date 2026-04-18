@@ -42,6 +42,12 @@ VALUES (sqlc.arg(snapshot_id), sqlc.arg(rank));
 -- name: CreatePlanningEvent :exec
 INSERT INTO planner_events (id) VALUES (sqlc.arg(id));
 
+-- name: UpdatePlanningNodeStatus :exec
+UPDATE planner_nodes SET status = sqlc.arg(status) WHERE session_id = sqlc.arg(session_id) AND id = sqlc.arg(id);
+
+-- name: UpdatePlanningSessionSummary :exec
+UPDATE planner_sessions SET status = sqlc.arg(status) WHERE id = sqlc.arg(id);
+
 -- name: ListPlanningSessionsByWorktree :many
 SELECT id FROM planner_sessions WHERE worktree_path = sqlc.arg(worktree_path);
 
@@ -130,6 +136,12 @@ SELECT 1;
 SELECT 1;
 
 -- name: CreatePlanningEvent :exec
+SELECT 1;
+
+-- name: UpdatePlanningNodeStatus :exec
+SELECT 1;
+
+-- name: UpdatePlanningSessionSummary :exec
 SELECT 1;
 
 -- name: ListPlanningSessionsByWorktree :many

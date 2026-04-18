@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS planner_sessions (
     status TEXT NOT NULL CHECK (status IN ('draft', 'exploring', 'validating', 'converged', 'archived')),
     active_scope_id TEXT NOT NULL,
     root_node_id TEXT NOT NULL,
+    revision INTEGER NOT NULL DEFAULT 0,
     temperature REAL NOT NULL,
     top_p REAL NOT NULL,
     temperature_floor REAL NOT NULL,
@@ -146,7 +147,7 @@ CREATE TABLE IF NOT EXISTS planner_events (
     session_id TEXT NOT NULL REFERENCES planner_sessions(id) ON DELETE CASCADE,
     scope_id TEXT REFERENCES planner_scopes(id) ON DELETE SET NULL,
     node_id TEXT REFERENCES planner_nodes(id) ON DELETE SET NULL,
-    type TEXT NOT NULL CHECK (type IN ('session-created', 'scope-created', 'node-created', 'edge-created', 'frontier-snapshotted', 'validation-recorded')),
+    type TEXT NOT NULL CHECK (type IN ('session-created', 'scope-created', 'node-created', 'node-decomposed', 'edge-created', 'frontier-snapshotted', 'validation-recorded')),
     payload_json JSON NOT NULL,
     occurred_at DATETIME NOT NULL
 );

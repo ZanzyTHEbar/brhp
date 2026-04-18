@@ -1,0 +1,2 @@
+ALTER TABLE planner_sessions
+ADD COLUMN revision INTEGER NOT NULL DEFAULT 0;

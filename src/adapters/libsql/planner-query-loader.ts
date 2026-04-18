@@ -13,6 +13,8 @@ export const PLANNER_QUERY_NAMES = [
   'CreatePlanningFrontierSnapshot',
   'CreatePlanningFrontierSelection',
   'CreatePlanningEvent',
+  'UpdatePlanningNodeStatus',
+  'UpdatePlanningSessionSummary',
   'ListPlanningSessionsByWorktree',
   'GetActivePlanningSessionByContext',
   'GetPlanningSessionByID',

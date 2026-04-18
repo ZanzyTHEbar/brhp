@@ -48,6 +48,8 @@ assert(
   typeof hooks['experimental.chat.system.transform'] === 'function',
   'server hooks must expose system prompt transform'
 );
+assert(hooks.tool?.brhp_get_active_plan, 'server hooks must expose brhp_get_active_plan');
+assert(hooks.tool?.brhp_decompose_node, 'server hooks must expose brhp_decompose_node');
 
 console.log('Package verification passed');
 

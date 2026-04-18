@@ -48,6 +48,7 @@ export interface PlanningSession {
   readonly status: PlanningSessionStatus;
   readonly activeScopeId: string;
   readonly rootNodeId: string;
+  readonly revision: number;
   readonly controls: PlanningModelControls;
   readonly policy: PlanningPolicyState;
   readonly summary: PlanningSummaryState;

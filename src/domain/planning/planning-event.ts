@@ -15,6 +15,11 @@ export interface PlanningEventPayloadByType {
     readonly category: string;
     readonly status: string;
   };
+  'node-decomposed': {
+    readonly childNodeIds: readonly string[];
+    readonly previousStatus: string;
+    readonly nextStatus: string;
+  };
   'edge-created': {
     readonly fromNodeId: string;
     readonly toNodeId: string;
@@ -39,6 +44,7 @@ export const PLANNING_EVENT_TYPES = Object.freeze(
     'session-created': true,
     'scope-created': true,
     'node-created': true,
+    'node-decomposed': true,
     'edge-created': true,
     'frontier-snapshotted': true,
     'validation-recorded': true,

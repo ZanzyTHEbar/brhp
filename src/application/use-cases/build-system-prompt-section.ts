@@ -1,4 +1,5 @@
 import type { InstructionInventory } from '../../domain/instructions/instruction.js';
+import { BRHP_TOOL_IDS } from '../../domain/planning/planner-tool.js';
 import type { PlanningState } from '../../domain/planning/planning-session.js';
 import { buildPlanningSessionSummary } from './build-planning-session-summary.js';
 
@@ -40,6 +41,10 @@ export function buildSystemPromptSection(
         `Problem: ${planningSummary.initialProblem}`,
         `Active scope: ${planningSummary.activeScopeId}`,
         `Graph counts: ${planningSummary.scopeCount} scopes, ${planningSummary.nodeCount} nodes, ${planningSummary.edgeCount} edges`,
+        'Use the BRHP tool flow when planning in this chat:',
+        `- First call ${BRHP_TOOL_IDS.getActivePlan} to inspect the authoritative state.`,
+        `- Then call ${BRHP_TOOL_IDS.decomposeNode} only when you need to decompose one existing node into explicit child nodes.`,
+        '- Do not invent planner state outside the tool results.',
         ...(planningSummary.invariants.length > 0
           ? ['Invariants:', ...planningSummary.invariants.map(invariant => `- ${invariant}`)]
           : []),

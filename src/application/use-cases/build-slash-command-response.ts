@@ -69,6 +69,8 @@ function renderMutation(mutation: PlannerRuntimeMutation): string[] {
       return [`- Created session ${mutation.state.session.id}`];
     case 'resumed':
       return [`- Resumed session ${mutation.state.session.id}`];
+    case 'decomposed':
+      return [`- Decomposed node ${mutation.nodeId} in session ${mutation.state.session.id}`];
     case 'resume-not-found':
       return [`- Session ${mutation.sessionId} was not found in this worktree`];
   }

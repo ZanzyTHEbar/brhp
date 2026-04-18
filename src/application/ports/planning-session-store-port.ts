@@ -22,9 +22,21 @@ export interface PlanningSessionSeed {
   readonly frontier: FrontierSnapshot;
 }
 
+export interface PlanningNodeDecompositionPatch {
+  readonly session: PlanningSession;
+  readonly previousSessionRevision: number;
+  readonly originalParentNode: PlanNode;
+  readonly updatedParentNode: PlanNode;
+  readonly childNodes: readonly PlanNode[];
+  readonly edges: readonly PlanEdge[];
+  readonly frontier: FrontierSnapshot;
+  readonly events: readonly PlanningEvent[];
+}
+
 export interface PlanningSessionStorePort {
   createSession(seed: PlanningSessionSeed): Promise<void>;
   activateSession(context: PlanningSessionContext, sessionId: string): Promise<boolean>;
+  applyNodeDecomposition(patch: PlanningNodeDecompositionPatch): Promise<void>;
 }
 
 export interface PlanningSessionQueryPort {

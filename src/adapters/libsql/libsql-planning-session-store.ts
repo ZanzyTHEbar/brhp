@@ -1,6 +1,7 @@
 import type { Client } from '@libsql/client';
 
 import type {
+  PlanningNodeDecompositionPatch,
   PlanningSessionContext,
   PlanningSessionQueryPort,
   PlanningSessionSeed,
@@ -12,7 +13,13 @@ import type { PlanNode, PlanNodeCategory, PlanNodeStatus } from '../../domain/pl
 import type { PlanningEvent, PlanningEventPayloadByType, PlanningEventType } from '../../domain/planning/planning-event.js';
 import type { PlanningSession, PlanningSessionStatus, PlanningState } from '../../domain/planning/planning-session.js';
 import type { PlanningScope, PlanningScopeStatus } from '../../domain/planning/planning-scope.js';
-import { executePlannerQuery, fetchPlannerQueryMany, fetchPlannerQueryOne, type LibsqlQueryRow } from './libsql-query-runtime.js';
+import {
+  executePlannerQuery,
+  executePlannerQueryWithRowsAffected,
+  fetchPlannerQueryMany,
+  fetchPlannerQueryOne,
+  type LibsqlQueryRow,
+} from './libsql-query-runtime.js';
 import { loadPlannerQueryCatalog } from './planner-query-loader.js';
 
 export class LibsqlPlanningSessionStore
@@ -46,6 +53,7 @@ export class LibsqlPlanningSessionStore
         status: seed.session.status,
         active_scope_id: seed.session.activeScopeId,
         root_node_id: seed.session.rootNodeId,
+        revision: seed.session.revision,
         temperature: seed.session.controls.temperature,
         top_p: seed.session.controls.topP,
         temperature_floor: seed.session.controls.temperatureFloor,
@@ -164,6 +172,96 @@ export class LibsqlPlanningSessionStore
       });
       await transaction.commit();
       return true;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
+  async applyNodeDecomposition(patch: PlanningNodeDecompositionPatch): Promise<void> {
+    const queries = await this.#queryCatalogPromise;
+    const transaction = await this.#client.transaction('write');
+
+    try {
+      const updatedRows = await executePlannerQueryWithRowsAffected(
+        transaction,
+        queries.UpdatePlanningNodeStatus,
+        {
+        session_id: patch.session.id,
+        id: patch.updatedParentNode.id,
+        status: patch.updatedParentNode.status,
+        updated_at: patch.updatedParentNode.updatedAt,
+          expected_status: patch.originalParentNode.status,
+          expected_updated_at: patch.originalParentNode.updatedAt,
+        }
+      );
+
+      if (updatedRows !== 1) {
+        throw new Error(
+          `Planning node '${patch.updatedParentNode.id}' could not be decomposed because it changed concurrently`
+        );
+      }
+
+      for (const node of patch.childNodes) {
+        await executePlannerQuery(transaction, queries.CreatePlanningNode, mapNodeArgs(node));
+      }
+
+      for (const edge of patch.edges) {
+        await executePlannerQuery(transaction, queries.CreatePlanningEdge, mapEdgeArgs(edge));
+      }
+
+      await executePlannerQuery(
+        transaction,
+        queries.CreatePlanningFrontierSnapshot,
+        mapFrontierSnapshotArgs(patch.frontier)
+      );
+
+      for (const selection of patch.frontier.selections) {
+        await executePlannerQuery(
+          transaction,
+          queries.CreatePlanningFrontierSelection,
+          mapFrontierSelectionArgs(patch.frontier.id, selection)
+        );
+      }
+
+      for (const event of patch.events) {
+        await executePlannerQuery(transaction, queries.CreatePlanningEvent, {
+          id: event.id,
+          session_id: event.sessionId,
+          scope_id: event.scopeId ?? null,
+          node_id: event.nodeId ?? null,
+          type: event.type,
+          payload_json: JSON.stringify(event.payload),
+          occurred_at: event.occurredAt,
+        });
+      }
+
+      const updatedSessionRows = await executePlannerQueryWithRowsAffected(
+        transaction,
+        queries.UpdatePlanningSessionSummary,
+        {
+          id: patch.session.id,
+          next_revision: patch.session.revision,
+          expected_revision: patch.previousSessionRevision,
+          status: patch.session.status,
+          global_entropy: patch.session.summary.globalEntropy,
+          entropy_drift: patch.session.summary.entropyDrift,
+          frontier_stability: patch.session.summary.frontierStability,
+          blocking_findings: patch.session.summary.blockingFindings,
+          pending_blocking_clauses: patch.session.summary.pendingBlockingClauses,
+          converged: patch.session.summary.converged ? 1 : 0,
+          last_frontier_updated_at: patch.session.summary.lastFrontierUpdatedAt,
+          updated_at: patch.session.updatedAt,
+        }
+      );
+
+      if (updatedSessionRows !== 1) {
+        throw new Error(
+          `Planning session '${patch.session.id}' changed concurrently while updating the summary`
+        );
+      }
+
+      await transaction.commit();
     } catch (error) {
       await transaction.rollback();
       throw error;
@@ -409,6 +507,7 @@ function mapSessionRow(
     status: readString(row, 'status') as PlanningSessionStatus,
     activeScopeId: readString(row, 'active_scope_id'),
     rootNodeId: readString(row, 'root_node_id'),
+    revision: readNumber(row, 'revision'),
     controls: {
       temperature: readNumber(row, 'temperature'),
       topP: readNumber(row, 'top_p'),

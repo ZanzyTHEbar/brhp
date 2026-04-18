@@ -20,6 +20,10 @@ describe('createServerPluginHooks', () => {
       template: '',
       description: 'Inspect or manage the active BRHP planning session for this OpenCode chat.',
     });
+    expect(Object.keys(hooks.tool ?? {})).toEqual([
+      'brhp_get_active_plan',
+      'brhp_decompose_node',
+    ]);
   });
 
   it('leaves unrelated commands unchanged', async () => {
@@ -212,6 +216,56 @@ describe('createServerPluginHooks', () => {
 
       expect(resumedText).toContain(`Resumed session ${createdSessionId}`);
       expect(resumedText).toContain(`- Active: ${createdSessionId}`);
+
+      const readToolOutput = await hooks.tool?.brhp_get_active_plan?.execute(
+        {},
+        {
+          sessionID: 'chat-b',
+          messageID: 'message-1',
+          agent: 'assistant',
+          directory: projectDirectory,
+          worktree: projectDirectory,
+          abort: new AbortController().signal,
+          metadata() {},
+          ask: async () => {},
+        } as never
+      );
+
+      expect(readToolOutput).toContain(`"id": "${createdSessionId}"`);
+      const activePlan = JSON.parse(readToolOutput ?? '{}') as {
+        session?: { rootNodeId?: string };
+      };
+
+      const decomposeToolOutput = await hooks.tool?.brhp_decompose_node?.execute(
+        {
+          nodeId: activePlan.session?.rootNodeId ?? '',
+          children: [
+            {
+              title: 'Define graph tools',
+              problemStatement: 'Specify the minimal BRHP graph tool API.',
+              category: 'cross-cutting',
+            },
+            {
+              title: 'Persist frontier updates',
+              problemStatement: 'Refresh the frontier after decomposition.',
+              category: 'dependent',
+            },
+          ],
+        },
+        {
+          sessionID: 'chat-b',
+          messageID: 'message-2',
+          agent: 'assistant',
+          directory: projectDirectory,
+          worktree: projectDirectory,
+          abort: new AbortController().signal,
+          metadata() {},
+          ask: async () => {},
+        } as never
+      );
+
+      expect(decomposeToolOutput).toContain('"kind": "decomposed"');
+      expect(decomposeToolOutput).toContain('Define graph tools');
     } finally {
       if (originalConfigDirectory === undefined) {
         delete process.env.OPENCODE_CONFIG_DIR;

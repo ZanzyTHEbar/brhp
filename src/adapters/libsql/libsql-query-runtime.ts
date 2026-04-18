@@ -15,6 +15,17 @@ export async function executePlannerQuery(
   await executor.execute({ sql: query.sql, args } as never);
 }
 
+export async function executePlannerQueryWithRowsAffected(
+  executor: LibsqlQueryExecutor,
+  query: PlannerQueryDefinition,
+  args: LibsqlNamedArgs = {}
+): Promise<number> {
+  assertCommand(query, 'exec');
+  const result = await executor.execute({ sql: query.sql, args } as never);
+
+  return result.rowsAffected ?? 0;
+}
+
 export async function fetchPlannerQueryOne(
   executor: LibsqlQueryExecutor,
   query: PlannerQueryDefinition,

@@ -109,6 +109,7 @@ export function createPlanningSessionSeed(
     status: 'exploring' as const,
     activeScopeId: scopeId,
     rootNodeId: rootNode.id,
+    revision: 0,
     controls: {
       temperature,
       topP,

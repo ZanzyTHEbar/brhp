@@ -5,6 +5,7 @@ import { buildSlashCommandResponse } from '../application/use-cases/build-slash-
 import { buildSystemPromptSection } from '../application/use-cases/build-system-prompt-section.js';
 import type { PlannerRuntimeMutation } from '../application/services/planner-runtime.js';
 import { createPlannerRuntimeForWorktree } from './create-planner-runtime.js';
+import { createPlannerTools } from './create-planner-tools.js';
 import { createInstructionInventoryLoader } from './create-instruction-inventory-loader.js';
 import {
   BRHP_COMMAND_DESCRIPTION,
@@ -24,8 +25,10 @@ export async function createServerPluginHooks(
     plannerPromise ??= createPlannerRuntimeForWorktree(projectDirectory);
     return plannerPromise;
   };
+  const getRuntime = async () => (await getPlanner()).runtime;
 
   return {
+    tool: createPlannerTools(async () => getRuntime()),
     config: async opencodeConfig => {
       opencodeConfig.command ??= {};
       opencodeConfig.command[BRHP_COMMAND_NAME] = {
