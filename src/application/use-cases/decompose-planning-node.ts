@@ -40,6 +40,10 @@ export function decomposePlanningNode(
     throw new RangeError('children must contain at least one child node');
   }
 
+  if (input.state.session.status === 'archived') {
+    throw new Error('Archived BRHP planning sessions cannot be decomposed');
+  }
+
   const parentNode = input.state.graph.nodes.find(node => node.id === trimmedNodeId);
 
   if (!parentNode) {

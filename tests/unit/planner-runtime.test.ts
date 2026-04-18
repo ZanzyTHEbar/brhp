@@ -204,6 +204,47 @@ describe('createPlannerRuntime', () => {
     expect(reloaded?.frontier?.selections[0]?.validationPressure ?? 0).toBeGreaterThan(0);
   });
 
+  it('newly converges when validation is satisfiable and thresholds are met', async () => {
+    const store = createInMemoryStore();
+    const ids = createIdGenerator();
+    const runtime = createPlannerRuntime({
+      clock: { now: () => new Date('2026-04-18T10:12:00.000Z') },
+      ids,
+      store,
+    });
+    const context = { worktreePath: '/repo', opencodeSessionId: 'chat-5' };
+
+    await runtime.create(
+      context,
+      {
+        directories: { global: '/global', project: '/repo/.opencode/brhp/instructions' },
+        instructions: [],
+        counts: { global: 0, project: 0, total: 0, skipped: 0 },
+        skippedFiles: [],
+      },
+      'Reach BRHP convergence'
+    );
+
+    const mutation = await runtime.recordValidation(context, {
+      clauses: [
+        {
+          kind: 'schema',
+          blocking: true,
+          description: 'Planner session must have an active scope.',
+          status: 'passed',
+        },
+      ],
+    });
+
+    expect(mutation.kind).toBe('validation-recorded');
+    if (mutation.kind !== 'validation-recorded') {
+      throw new Error('Expected validation mutation');
+    }
+
+    expect(mutation.state.session.status).toBe('converged');
+    expect(mutation.state.session.summary.converged).toBe(true);
+  });
+
   it('preserves validation pressure after decomposing within an unsatisfied active scope', async () => {
     const store = createInMemoryStore();
     const ids = createIdGenerator();
@@ -265,6 +306,61 @@ describe('createPlannerRuntime', () => {
     );
   });
 
+  it('returns to exploring when a converged session is decomposed', async () => {
+    const store = createInMemoryStore();
+    const ids = createIdGenerator();
+    const runtime = createPlannerRuntime({
+      clock: { now: () => new Date('2026-04-18T10:20:00.000Z') },
+      ids,
+      store,
+    });
+    const context = { worktreePath: '/repo', opencodeSessionId: 'chat-6' };
+
+    await runtime.create(
+      context,
+      {
+        directories: { global: '/global', project: '/repo/.opencode/brhp/instructions' },
+        instructions: [],
+        counts: { global: 0, project: 0, total: 0, skipped: 0 },
+        skippedFiles: [],
+      },
+      'Invalidate convergence by decomposing'
+    );
+
+    await runtime.recordValidation(context, {
+      clauses: [
+        {
+          kind: 'schema',
+          blocking: true,
+          description: 'Planner session must have an active scope.',
+          status: 'passed',
+        },
+      ],
+    });
+
+    const converged = await runtime.getActive(context);
+    const rootNodeId = converged?.session.rootNodeId ?? '';
+
+    const mutation = await runtime.decomposeNode(context, {
+      nodeId: rootNodeId,
+      children: [
+        {
+          title: 'Invalidate the converged frontier',
+          problemStatement: 'Any decomposition should return the session to exploring.',
+          category: 'dependent',
+        },
+      ],
+    });
+
+    expect(mutation.kind).toBe('decomposed');
+    if (mutation.kind !== 'decomposed') {
+      throw new Error('Expected decomposition mutation');
+    }
+
+    expect(mutation.state.session.status).toBe('exploring');
+    expect(mutation.state.session.summary.converged).toBe(false);
+  });
+
   it('rejects validation when no active session exists', async () => {
     const store = createInMemoryStore();
     const runtime = createPlannerRuntime({
@@ -288,6 +384,61 @@ describe('createPlannerRuntime', () => {
         }
       )
     ).rejects.toThrow('No active BRHP planning session exists');
+  });
+
+  it('rejects validation and decomposition when the active session is archived', async () => {
+    const store = createInMemoryStore();
+    const ids = createIdGenerator();
+    const runtime = createPlannerRuntime({
+      clock: { now: () => new Date('2026-04-18T10:25:00.000Z') },
+      ids,
+      store,
+    });
+    const context = { worktreePath: '/repo', opencodeSessionId: 'chat-7' };
+
+    await runtime.create(
+      context,
+      {
+        directories: { global: '/global', project: '/repo/.opencode/brhp/instructions' },
+        instructions: [],
+        counts: { global: 0, project: 0, total: 0, skipped: 0 },
+        skippedFiles: [],
+      },
+      'Archive guardrails'
+    );
+
+    const active = await runtime.getActive(context);
+    if (!active) {
+      throw new Error('Expected active session');
+    }
+
+    store.forceSessionStatus(active.session.id, 'archived');
+
+    await expect(
+      runtime.recordValidation(context, {
+        clauses: [
+          {
+            kind: 'schema',
+            blocking: true,
+            description: 'Archived sessions must reject validation.',
+            status: 'passed',
+          },
+        ],
+      })
+    ).rejects.toThrow('Archived BRHP planning sessions cannot be validated');
+
+    await expect(
+      runtime.decomposeNode(context, {
+        nodeId: active.session.rootNodeId,
+        children: [
+          {
+            title: 'Should not decompose',
+            problemStatement: 'Archived sessions must reject decomposition.',
+            category: 'dependent',
+          },
+        ],
+      })
+    ).rejects.toThrow('Archived BRHP planning sessions cannot be decomposed');
   });
 });
 
@@ -386,6 +537,19 @@ function createInMemoryStore() {
       return [...states.values()]
         .filter(state => state.session.worktreePath === worktreePath)
         .map(state => state.session);
+    },
+    forceSessionStatus(sessionId: string, status: PlanningState['session']['status']) {
+      const state = states.get(sessionId);
+      if (!state) {
+        throw new Error('Missing session');
+      }
+      states.set(sessionId, {
+        ...state,
+        session: {
+          ...state.session,
+          status,
+        },
+      });
     },
   };
 }

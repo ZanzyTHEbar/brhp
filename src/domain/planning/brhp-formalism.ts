@@ -29,6 +29,18 @@ export interface ConvergenceAssessment {
   readonly reasons: readonly string[];
 }
 
+export interface ConvergenceThresholds {
+  readonly entropyThreshold: number;
+  readonly driftThreshold: number;
+  readonly stabilityThreshold: number;
+}
+
+export const DEFAULT_CONVERGENCE_THRESHOLDS: ConvergenceThresholds = Object.freeze({
+  entropyThreshold: 0.2,
+  driftThreshold: 0.05,
+  stabilityThreshold: 0.9,
+});
+
 export interface ValidationPressureInput {
   readonly verdict: ValidationVerdict;
   readonly status: PlanNodeStatus;

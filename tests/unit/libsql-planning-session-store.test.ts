@@ -970,6 +970,134 @@ describe('LibsqlPlanningSessionStore', () => {
     }
   });
 
+  it('persists convergence after satisfiable validation and clears it after decomposition', async () => {
+    const worktreePath = await mkdtemp(path.join(os.tmpdir(), 'brhp-libsql-convergence-'));
+    const database = await openPlanningDatabase({ worktreePath });
+
+    try {
+      const store = new LibsqlPlanningSessionStore(database.client);
+      const ids = createIdGenerator();
+      const runtime = createPlannerRuntime({
+        clock: { now: () => new Date('2026-04-19T09:02:00.000Z') },
+        ids,
+        store,
+      });
+      const context = { worktreePath, opencodeSessionId: 'chat-convergence' };
+
+      await runtime.create(
+        context,
+        {
+          directories: { global: '/global', project: `${worktreePath}/.opencode/brhp/instructions` },
+          instructions: [],
+          counts: { global: 0, project: 0, total: 0, skipped: 0 },
+          skippedFiles: [],
+        },
+        'Persist BRHP convergence'
+      );
+
+      await runtime.recordValidation(context, {
+        clauses: [
+          {
+            kind: 'schema',
+            blocking: true,
+            description: 'Planner session must retain an active scope.',
+            status: 'passed',
+          },
+        ],
+      });
+
+      const converged = await store.getActiveSession(context);
+      expect(converged?.session.status).toBe('converged');
+      expect(converged?.session.summary.converged).toBe(true);
+
+      await runtime.decomposeNode(context, {
+        nodeId: converged?.session.rootNodeId ?? '',
+        children: [
+          {
+            title: 'Break convergence',
+            problemStatement: 'Decomposition should clear convergence.',
+            category: 'dependent',
+          },
+        ],
+      });
+
+      const reloaded = await store.getActiveSession(context);
+      expect(reloaded?.session.status).toBe('exploring');
+      expect(reloaded?.session.summary.converged).toBe(false);
+    } finally {
+      database.close();
+      await rm(worktreePath, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects validation and decomposition for archived active sessions', async () => {
+    const worktreePath = await mkdtemp(path.join(os.tmpdir(), 'brhp-libsql-archived-'));
+    const database = await openPlanningDatabase({ worktreePath });
+
+    try {
+      const store = new LibsqlPlanningSessionStore(database.client);
+      const ids = createIdGenerator();
+      const runtime = createPlannerRuntime({
+        clock: { now: () => new Date('2026-04-19T09:03:00.000Z') },
+        ids,
+        store,
+      });
+      const context = { worktreePath, opencodeSessionId: 'chat-archived' };
+
+      await runtime.create(
+        context,
+        {
+          directories: { global: '/global', project: `${worktreePath}/.opencode/brhp/instructions` },
+          instructions: [],
+          counts: { global: 0, project: 0, total: 0, skipped: 0 },
+          skippedFiles: [],
+        },
+        'Reject mutations for archived sessions'
+      );
+
+      const active = await store.getActiveSession(context);
+      await database.client.execute({
+        sql: `
+          UPDATE planner_sessions
+          SET status = 'archived'
+          WHERE id = :id
+        `,
+        args: {
+          id: active?.session.id ?? '',
+        },
+      });
+
+      await expect(
+        runtime.recordValidation(context, {
+          clauses: [
+            {
+              kind: 'schema',
+              blocking: true,
+              description: 'Archived sessions must reject validation.',
+              status: 'passed',
+            },
+          ],
+        })
+      ).rejects.toThrow('Archived BRHP planning sessions cannot be validated');
+
+      await expect(
+        runtime.decomposeNode(context, {
+          nodeId: active?.session.rootNodeId ?? '',
+          children: [
+            {
+              title: 'Should not decompose',
+              problemStatement: 'Archived sessions must reject decomposition.',
+              category: 'dependent',
+            },
+          ],
+        })
+      ).rejects.toThrow('Archived BRHP planning sessions cannot be decomposed');
+    } finally {
+      database.close();
+      await rm(worktreePath, { recursive: true, force: true });
+    }
+  });
+
   it('preserves validation pressure after decomposing under an unsatisfied validation snapshot', async () => {
     const worktreePath = await mkdtemp(path.join(os.tmpdir(), 'brhp-libsql-validation-decompose-'));
     const database = await openPlanningDatabase({ worktreePath });

@@ -1,7 +1,11 @@
 import type { ClockPort } from '../ports/clock-port.js';
 import type { IdGeneratorPort } from '../ports/id-generator-port.js';
 import type { PlanningValidationRecordPatch } from '../ports/planning-session-store-port.js';
-import { evaluateValidationFormula } from '../../domain/planning/brhp-formalism.js';
+import {
+  DEFAULT_CONVERGENCE_THRESHOLDS,
+  evaluateConvergence,
+  evaluateValidationFormula,
+} from '../../domain/planning/brhp-formalism.js';
 import type {
   PlanningEvent,
   PlanningEventPayloadByType,
@@ -39,6 +43,10 @@ export interface RecordActiveScopeValidationClauseInput {
 export function recordActiveScopeValidation(
   input: RecordActiveScopeValidationInput
 ): PlanningValidationRecordPatch {
+  if (input.state.session.status === 'archived') {
+    throw new Error('Archived BRHP planning sessions cannot be validated');
+  }
+
   if (input.clauses.length === 0) {
     throw new RangeError('clauses must contain at least one validation clause');
   }
@@ -66,13 +74,18 @@ export function recordActiveScopeValidation(
     nodes: input.state.graph.nodes,
     occurredAt: createdAt,
   });
-  const nextConverged = input.state.session.summary.converged && verdict.satisfiable;
-  const nextStatus: PlanningState['session']['status'] =
-    input.state.session.status === 'archived'
-      ? 'archived'
-      : nextConverged
-        ? 'converged'
-        : 'validating';
+  const convergence = evaluateConvergence({
+    globalEntropy: frontierUpdate.summary.globalEntropy,
+    entropyDrift: frontierUpdate.summary.entropyDrift,
+    frontierStability: frontierUpdate.summary.frontierStability,
+    blockingFindings: verdict.blockingFindings,
+    pendingBlockingClauses: verdict.pendingBlockingClauses,
+    ...DEFAULT_CONVERGENCE_THRESHOLDS,
+  });
+  const nextConverged = convergence.converged;
+  const nextStatus: PlanningState['session']['status'] = nextConverged
+    ? 'converged'
+    : 'validating';
   const session = {
     ...input.state.session,
     revision: input.state.session.revision + 1,
