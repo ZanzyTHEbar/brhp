@@ -65,9 +65,9 @@ describe('buildSlashCommandResponse', () => {
           invariants: ['Keep all changes durable'],
         },
         summary: {
-          globalEntropy: 0,
-          entropyDrift: 0,
-          frontierStability: 1,
+          globalEntropy: 0.8,
+          entropyDrift: 0.3,
+          frontierStability: 0.5,
           blockingFindings: 0,
           pendingBlockingClauses: 0,
           converged: false,
@@ -78,8 +78,29 @@ describe('buildSlashCommandResponse', () => {
       },
       graph: {
         scopes: [{ id: 'scope-1' }],
-        nodes: [{ id: 'node-1' }],
+        nodes: [{ id: 'node-1', title: 'Expand scope coverage' }],
         edges: [],
+      },
+      frontier: {
+        id: 'frontier-1',
+        sessionId: 'session-1',
+        scopeId: 'scope-1',
+        temperature: 0.3,
+        globalEntropy: 0.8,
+        depthClamp: 4,
+        selections: [
+          {
+            nodeId: 'node-1',
+            scopeId: 'scope-1',
+            utility: 1,
+            localEntropy: 0.5,
+            validationPressure: 0.5,
+            probability: 0.7,
+            rank: 1,
+            depthClamp: 4,
+          },
+        ],
+        createdAt: '2026-04-17T12:05:00.000Z',
       },
       validation: {
         id: 'validation-1',
@@ -132,6 +153,8 @@ describe('buildSlashCommandResponse', () => {
     expect(response).toContain('- Problem: Formalize BRHP');
     expect(response).toContain('- Graph: 1 scopes, 1 nodes, 0 edges');
     expect(response).toContain('- Validation: satisfiable (0 blocking, 0 pending, 1 clauses)');
+    expect(response).toContain('- Frontier: 1 selections, top Expand scope coverage (p=0.700)');
+    expect(response).toContain('- Pressure: max 0.500, 1/1 selections pressured, entropy 0.800, drift 0.300, stability 0.500');
     expect(response).toContain('- Created session session-1');
   });
 });

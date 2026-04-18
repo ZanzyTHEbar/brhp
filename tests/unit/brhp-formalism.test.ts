@@ -5,6 +5,7 @@ import {
   computeDepthClamp,
   computeEntropy,
   computeGlobalEntropy,
+  computeValidationPressure,
   evaluateConvergence,
   evaluateValidationFormula,
 } from '../../src/domain/planning/brhp-formalism.js';
@@ -71,6 +72,34 @@ describe('brhp-formalism', () => {
     expect(selections[0]?.nodeId).toBe('shallow');
   });
 
+  it('uses validation pressure to break ties and increase selection probability', () => {
+    const selections = computeBoltzmannSelections(
+      [
+        {
+          nodeId: 'low-pressure',
+          scopeId: 'scope',
+          utility: 1,
+          localEntropy: 0.2,
+          validationPressure: 0,
+          depth: 1,
+        },
+        {
+          nodeId: 'high-pressure',
+          scopeId: 'scope',
+          utility: 1,
+          localEntropy: 0.2,
+          validationPressure: 0.5,
+          depth: 1,
+        },
+      ],
+      0.5,
+      4
+    );
+
+    expect(selections[0]?.nodeId).toBe('high-pressure');
+    expect(selections[0]?.probability ?? 0).toBeGreaterThan(selections[1]?.probability ?? 0);
+  });
+
   it('clamps depth inversely to normalized temperature', () => {
     expect(
       computeDepthClamp({
@@ -127,6 +156,48 @@ describe('brhp-formalism', () => {
     expect(verdict.satisfiable).toBe(false);
     expect(verdict.blockingFindings).toBe(0);
     expect(verdict.pendingBlockingClauses).toBe(1);
+  });
+
+  it('computes validation pressure from verdict severity, status, and depth', () => {
+    const verdict = evaluateValidationFormula({
+      scopeId: 'scope-1',
+      clauses: [
+        {
+          id: 'a',
+          kind: 'conflict',
+          blocking: true,
+          description: 'A blocking conflict remains.',
+          status: 'failed',
+        },
+      ],
+    });
+
+    expect(
+      computeValidationPressure({
+        verdict,
+        status: 'active',
+        depth: 0,
+      })
+    ).toBe(1);
+    expect(
+      computeValidationPressure({
+        verdict,
+        status: 'blocked',
+        depth: 1,
+      })
+    ).toBeCloseTo(0.625, 10);
+    expect(
+      computeValidationPressure({
+        verdict: {
+          ...verdict,
+          satisfiable: true,
+          blockingFindings: 0,
+          pendingBlockingClauses: 0,
+        },
+        status: 'active',
+        depth: 0,
+      })
+    ).toBe(0);
   });
 
   it('requires entropy, stability, and validation thresholds for convergence', () => {

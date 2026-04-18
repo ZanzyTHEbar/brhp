@@ -15,6 +15,10 @@ import type {
   ValidationSnapshot,
   ValidationFormula,
 } from '../../domain/planning/validation.js';
+import {
+  createFrontierSnapshotPayload,
+  recomputeActiveFrontier,
+} from './recompute-active-frontier.js';
 
 export interface RecordActiveScopeValidationInput {
   readonly clock: ClockPort;
@@ -53,6 +57,15 @@ export function recordActiveScopeValidation(
     ...verdict,
     createdAt,
   };
+  const frontierUpdate = recomputeActiveFrontier({
+    ids: input.ids,
+    state: {
+      ...input.state,
+      validation,
+    },
+    nodes: input.state.graph.nodes,
+    occurredAt: createdAt,
+  });
   const nextConverged = input.state.session.summary.converged && verdict.satisfiable;
   const nextStatus: PlanningState['session']['status'] =
     input.state.session.status === 'archived'
@@ -66,9 +79,13 @@ export function recordActiveScopeValidation(
     status: nextStatus,
     summary: {
       ...input.state.session.summary,
+      globalEntropy: frontierUpdate.summary.globalEntropy,
+      entropyDrift: frontierUpdate.summary.entropyDrift,
+      frontierStability: frontierUpdate.summary.frontierStability,
       blockingFindings: verdict.blockingFindings,
       pendingBlockingClauses: verdict.pendingBlockingClauses,
       converged: nextConverged,
+      lastFrontierUpdatedAt: frontierUpdate.summary.lastFrontierUpdatedAt,
     },
     updatedAt: createdAt,
   };
@@ -87,12 +104,23 @@ export function recordActiveScopeValidation(
         clauseCount: clauses.length,
       },
     }),
+    createEvent(input.ids, {
+      sessionId: input.state.session.id,
+      scopeId: input.state.session.activeScopeId,
+      type: 'frontier-snapshotted',
+      occurredAt: createdAt,
+      payload: createFrontierSnapshotPayload(frontierUpdate.frontier, 'validation'),
+    }),
   ];
 
   return {
     session,
     previousSessionRevision: input.state.session.revision,
     validation,
+    updatedNodes: frontierUpdate.nodes.filter(
+      node => node.scopeId === input.state.session.activeScopeId
+    ),
+    frontier: frontierUpdate.frontier,
     events,
   };
 }

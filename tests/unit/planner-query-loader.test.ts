@@ -51,10 +51,10 @@ INSERT INTO planner_validation_clauses (snapshot_id, ordinal) VALUES (sqlc.arg(s
 -- name: UpdatePlanningNodeStatus :exec
 UPDATE planner_nodes SET status = sqlc.arg(status) WHERE session_id = sqlc.arg(session_id) AND id = sqlc.arg(id);
 
--- name: UpdatePlanningSessionSummary :exec
-UPDATE planner_sessions SET status = sqlc.arg(status) WHERE id = sqlc.arg(id);
+-- name: UpdatePlanningNodeValidationPressure :exec
+UPDATE planner_nodes SET validation_pressure = sqlc.arg(validation_pressure) WHERE session_id = sqlc.arg(session_id) AND id = sqlc.arg(id);
 
--- name: UpdatePlanningSessionValidationSummary :exec
+-- name: UpdatePlanningSessionSummary :exec
 UPDATE planner_sessions SET status = sqlc.arg(status) WHERE id = sqlc.arg(id);
 
 -- name: ListPlanningSessionsByWorktree :many
@@ -162,10 +162,10 @@ SELECT 1;
 -- name: UpdatePlanningNodeStatus :exec
 SELECT 1;
 
--- name: UpdatePlanningSessionSummary :exec
+-- name: UpdatePlanningNodeValidationPressure :exec
 SELECT 1;
 
--- name: UpdatePlanningSessionValidationSummary :exec
+-- name: UpdatePlanningSessionSummary :exec
 SELECT 1;
 
 -- name: ListPlanningSessionsByWorktree :many

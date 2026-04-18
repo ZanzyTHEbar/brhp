@@ -959,6 +959,77 @@ describe('LibsqlPlanningSessionStore', () => {
       expect(reloaded?.validation?.pendingBlockingClauses).toBe(1);
       expect(reloaded?.session.summary.pendingBlockingClauses).toBe(1);
       expect(reloaded?.session.revision).toBe(1);
+      expect(reloaded?.frontier?.selections.length).toBeGreaterThan(0);
+      expect(reloaded?.frontier?.selections.some(selection => selection.validationPressure > 0)).toBe(
+        true
+      );
+      expect(reloaded?.graph.nodes.some(node => node.scores.validationPressure > 0)).toBe(true);
+    } finally {
+      database.close();
+      await rm(worktreePath, { recursive: true, force: true });
+    }
+  });
+
+  it('preserves validation pressure after decomposing under an unsatisfied validation snapshot', async () => {
+    const worktreePath = await mkdtemp(path.join(os.tmpdir(), 'brhp-libsql-validation-decompose-'));
+    const database = await openPlanningDatabase({ worktreePath });
+
+    try {
+      const store = new LibsqlPlanningSessionStore(database.client);
+      const ids = createIdGenerator();
+      const runtime = createPlannerRuntime({
+        clock: { now: () => new Date('2026-04-19T09:05:00.000Z') },
+        ids,
+        store,
+      });
+      const context = { worktreePath, opencodeSessionId: 'chat-validation-decompose' };
+
+      await runtime.create(
+        context,
+        {
+          directories: { global: '/global', project: `${worktreePath}/.opencode/brhp/instructions` },
+          instructions: [],
+          counts: { global: 0, project: 0, total: 0, skipped: 0 },
+          skippedFiles: [],
+        },
+        'Persist validation pressure across decomposition'
+      );
+
+      await runtime.recordValidation(context, {
+        clauses: [
+          {
+            kind: 'coverage',
+            blocking: true,
+            description: 'The active scope must still be decomposed further.',
+            status: 'pending',
+          },
+        ],
+      });
+
+      const validated = await runtime.getActive(context);
+      const rootNodeId = validated?.session.rootNodeId ?? '';
+
+      await runtime.decomposeNode(context, {
+        nodeId: rootNodeId,
+        children: [
+          {
+            title: 'Pressure-bearing child',
+            problemStatement: 'Preserve validation pressure while the scope remains unsatisfied.',
+            category: 'dependent',
+          },
+        ],
+      });
+
+      const reloaded = await store.getActiveSession(context);
+
+      expect(
+        reloaded?.graph.nodes
+          .filter(node => node.parentNodeId === rootNodeId)
+          .some(node => node.scores.validationPressure > 0)
+      ).toBe(true);
+      expect(reloaded?.frontier?.selections.some(selection => selection.validationPressure > 0)).toBe(
+        true
+      );
     } finally {
       database.close();
       await rm(worktreePath, { recursive: true, force: true });

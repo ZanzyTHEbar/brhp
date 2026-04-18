@@ -1,4 +1,5 @@
 import type { FrontierCandidate, FrontierSelection } from './frontier.js';
+import type { PlanNodeStatus } from './plan-node.js';
 import type { ValidationFormula, ValidationVerdict } from './validation.js';
 
 const MIN_TEMPERATURE = 0.001;
@@ -28,6 +29,12 @@ export interface ConvergenceAssessment {
   readonly reasons: readonly string[];
 }
 
+export interface ValidationPressureInput {
+  readonly verdict: ValidationVerdict;
+  readonly status: PlanNodeStatus;
+  readonly depth: number;
+}
+
 export function computeBoltzmannSelections(
   candidates: readonly FrontierCandidate[],
   temperature: number,
@@ -40,9 +47,12 @@ export function computeBoltzmannSelections(
   }
 
   const safeTemperature = Math.max(MIN_TEMPERATURE, temperature);
-  const maxUtility = Math.max(...eligibleCandidates.map(candidate => candidate.utility));
+  const effectiveUtilities = eligibleCandidates.map(
+    candidate => candidate.utility + candidate.validationPressure
+  );
+  const maxUtility = Math.max(...effectiveUtilities);
   const weights = eligibleCandidates.map(candidate =>
-    Math.exp((candidate.utility - maxUtility) / safeTemperature)
+    Math.exp((candidate.utility + candidate.validationPressure - maxUtility) / safeTemperature)
   );
   const weightSum = weights.reduce((sum, weight) => sum + weight, 0);
 
@@ -63,6 +73,7 @@ export function computeBoltzmannSelections(
     .sort(
       (left, right) =>
         right.probability - left.probability ||
+        right.validationPressure - left.validationPressure ||
         right.utility - left.utility ||
         left.nodeId.localeCompare(right.nodeId)
     )
@@ -136,6 +147,30 @@ export function evaluateValidationFormula(
   };
 }
 
+export function computeValidationPressure(
+  input: ValidationPressureInput
+): number {
+  if (input.verdict.satisfiable) {
+    return 0;
+  }
+
+  const severity =
+    input.verdict.blockingFindings > 0
+      ? 1
+      : input.verdict.pendingBlockingClauses > 0
+        ? 0.5
+        : 0;
+  const statusWeight = getValidationPressureStatusWeight(input.status);
+
+  if (severity === 0 || statusWeight === 0) {
+    return 0;
+  }
+
+  const depthFactor = 1 / (input.depth + 1);
+
+  return clamp(severity * statusWeight * depthFactor, 0, 1);
+}
+
 export function evaluateConvergence(
   input: ConvergenceInput
 ): ConvergenceAssessment {
@@ -181,6 +216,22 @@ function normalizeTemperature(
     0,
     1
   );
+}
+
+function getValidationPressureStatusWeight(status: PlanNodeStatus): number {
+  switch (status) {
+    case 'active':
+      return 1;
+    case 'blocked':
+      return 1.25;
+    case 'proposed':
+      return 0.9;
+    case 'leaf':
+      return 0.75;
+    case 'decomposed':
+    case 'pruned':
+      return 0;
+  }
 }
 
 function clamp(value: number, min: number, max: number): number {

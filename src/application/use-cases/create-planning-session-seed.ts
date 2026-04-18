@@ -209,6 +209,7 @@ export function createPlanningSessionSeed(
           temperature,
           depthClamp,
           globalEntropy,
+          reason: 'seed',
         },
       }),
     ],

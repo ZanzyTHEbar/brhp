@@ -274,11 +274,19 @@ INSERT INTO planner_validation_clauses (
 -- name: UpdatePlanningNodeStatus :exec
 UPDATE planner_nodes
 SET status = sqlc.arg(status),
+    validation_pressure = sqlc.arg(validation_pressure),
     updated_at = sqlc.arg(updated_at)
 WHERE session_id = sqlc.arg(session_id)
   AND id = sqlc.arg(id)
   AND status = sqlc.arg(expected_status)
   AND updated_at = sqlc.arg(expected_updated_at);
+
+-- name: UpdatePlanningNodeValidationPressure :exec
+UPDATE planner_nodes
+SET validation_pressure = sqlc.arg(validation_pressure),
+    updated_at = sqlc.arg(updated_at)
+WHERE session_id = sqlc.arg(session_id)
+  AND id = sqlc.arg(id);
 
 -- name: UpdatePlanningSessionSummary :exec
 UPDATE planner_sessions
@@ -291,17 +299,6 @@ SET revision = sqlc.arg(next_revision),
     pending_blocking_clauses = sqlc.arg(pending_blocking_clauses),
     converged = sqlc.arg(converged),
     last_frontier_updated_at = sqlc.arg(last_frontier_updated_at),
-    updated_at = sqlc.arg(updated_at)
-WHERE id = sqlc.arg(id)
-  AND revision = sqlc.arg(expected_revision);
-
--- name: UpdatePlanningSessionValidationSummary :exec
-UPDATE planner_sessions
-SET revision = sqlc.arg(next_revision),
-    status = sqlc.arg(status),
-    blocking_findings = sqlc.arg(blocking_findings),
-    pending_blocking_clauses = sqlc.arg(pending_blocking_clauses),
-    converged = sqlc.arg(converged),
     updated_at = sqlc.arg(updated_at)
 WHERE id = sqlc.arg(id)
   AND revision = sqlc.arg(expected_revision);
@@ -497,7 +494,7 @@ SELECT id,
        created_at
 FROM planner_frontier_snapshots
 WHERE session_id = sqlc.arg(session_id)
-ORDER BY created_at DESC, id DESC
+ORDER BY created_at DESC, rowid DESC
 LIMIT 1;
 
 -- name: ListPlanningFrontierSelectionsBySnapshot :many
@@ -524,7 +521,7 @@ SELECT id,
        created_at
 FROM planner_validation_snapshots
 WHERE scope_id = sqlc.arg(scope_id)
-ORDER BY created_at DESC, id DESC
+ORDER BY created_at DESC, rowid DESC
 LIMIT 1;
 
 -- name: ListPlanningValidationClausesBySnapshot :many

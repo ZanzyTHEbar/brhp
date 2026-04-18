@@ -48,8 +48,56 @@ describe('recordActiveScopeValidation', () => {
     expect(patch.validation.pendingBlockingClauses).toBe(1);
     expect(patch.session.status).toBe('validating');
     expect(patch.session.summary.pendingBlockingClauses).toBe(1);
+    expect(patch.updatedNodes.some(node => node.scores.validationPressure > 0)).toBe(true);
+    expect(patch.frontier.selections.length).toBeGreaterThan(0);
+    expect(patch.frontier.selections.some(selection => selection.validationPressure > 0)).toBe(true);
     expect(patch.session.revision).toBe(seed.session.revision + 1);
-    expect(patch.events[0]?.type).toBe('validation-recorded');
+    expect(patch.events.map(event => event.type)).toEqual([
+      'validation-recorded',
+      'frontier-snapshotted',
+    ]);
+    expect(patch.events[1]?.payload).toMatchObject({ reason: 'validation' });
+  });
+
+  it('preserves signed entropy drift when validation reduces frontier entropy', () => {
+    const seed = createPlanningSessionSeed({
+      clock: { now: () => new Date('2026-04-19T10:00:00.000Z') },
+      ids: createIdGenerator(),
+      worktreePath: '/repo',
+      opencodeSessionId: 'chat-1',
+      problemStatement: 'Formalize BRHP validation persistence.',
+    });
+
+    const patch = recordActiveScopeValidation({
+      clock: { now: () => new Date('2026-04-19T10:05:00.000Z') },
+      ids: createIdGenerator(100),
+      state: {
+        session: {
+          ...seed.session,
+          summary: {
+            ...seed.session.summary,
+            globalEntropy: 0.9,
+          },
+        },
+        graph: {
+          scopes: seed.scopes,
+          nodes: seed.nodes,
+          edges: seed.edges,
+        },
+        frontier: seed.frontier,
+      },
+      clauses: [
+        {
+          kind: 'schema',
+          blocking: true,
+          description: 'The root scope still exists.',
+          status: 'passed',
+        },
+      ],
+    });
+
+    expect(patch.validation.satisfiable).toBe(true);
+    expect(patch.session.summary.entropyDrift).toBeLessThan(0);
   });
 
   it('rejects empty validation clause lists', () => {
@@ -120,6 +168,7 @@ describe('recordActiveScopeValidation', () => {
     expect(patch.validation.satisfiable).toBe(true);
     expect(patch.session.status).toBe('converged');
     expect(patch.session.summary.converged).toBe(true);
+    expect(patch.updatedNodes.every(node => node.scores.validationPressure === 0)).toBe(true);
   });
 });
 

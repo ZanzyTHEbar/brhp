@@ -300,6 +300,7 @@ describe('createServerPluginHooks', () => {
 
       expect(validateToolOutput).toContain('"kind": "validation-recorded"');
       expect(validateToolOutput).toContain('"pendingBlockingClauses": 1');
+      expect(validateToolOutput).toContain('"validationPressure"');
 
       const validatedPlanOutput = await hooks.tool?.brhp_get_active_plan?.execute(
         {},
@@ -317,6 +318,25 @@ describe('createServerPluginHooks', () => {
 
       expect(validatedPlanOutput).toContain('"validation"');
       expect(validatedPlanOutput).toContain('"pendingBlockingClauses": 1');
+      expect(validatedPlanOutput).toContain('"frontier"');
+      expect(validatedPlanOutput).toContain('"validationPressure"');
+
+      const statusOutput = {
+        parts: [{ type: 'text', text: 'replace me' }],
+      };
+
+      await hooks['command.execute.before']?.(
+        {
+          command: 'brhp',
+          sessionID: 'chat-b',
+          arguments: '',
+        },
+        statusOutput as never
+      );
+
+      const statusText = String(statusOutput.parts[0]?.text ?? '');
+      expect(statusText).toContain('- Frontier:');
+      expect(statusText).toContain('- Pressure:');
     } finally {
       if (originalConfigDirectory === undefined) {
         delete process.env.OPENCODE_CONFIG_DIR;

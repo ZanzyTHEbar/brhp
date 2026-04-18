@@ -48,6 +48,12 @@ export function buildSlashCommandResponse(
                 `- Validation: ${planningSummary.validation.satisfiable ? 'satisfiable' : 'unsatisfied'} (${planningSummary.validation.blockingFindings} blocking, ${planningSummary.validation.pendingBlockingClauses} pending, ${planningSummary.validation.clauseCount} clauses)`,
               ]
             : []),
+          ...(planningSummary.frontier
+            ? [
+                `- Frontier: ${planningSummary.frontier.selectionCount} selections, top ${planningSummary.frontier.topNodeTitle ?? planningSummary.frontier.topNodeId ?? 'n/a'}${planningSummary.frontier.topProbability !== undefined ? ` (p=${planningSummary.frontier.topProbability.toFixed(3)})` : ''}`,
+                `- Pressure: max ${planningSummary.frontier.maxValidationPressure.toFixed(3)}, ${planningSummary.frontier.pressuredSelectionCount}/${planningSummary.frontier.selectionCount} selections pressured, entropy ${planningSummary.frontier.globalEntropy.toFixed(3)}, drift ${planningSummary.frontier.entropyDrift.toFixed(3)}, stability ${planningSummary.frontier.frontierStability.toFixed(3)}`,
+              ]
+            : []),
         ]
       : ['- None active for this OpenCode session']),
     ...(mutationLines.length > 0 ? ['', 'Last action:', ...mutationLines] : []),

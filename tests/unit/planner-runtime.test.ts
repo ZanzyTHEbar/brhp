@@ -195,6 +195,74 @@ describe('createPlannerRuntime', () => {
     expect(mutation.state.validation?.pendingBlockingClauses).toBe(1);
     expect(mutation.state.validation?.formula.clauses).toHaveLength(2);
     expect(mutation.state.session.status).toBe('validating');
+    expect(mutation.state.frontier?.selections.length).toBeGreaterThan(0);
+    expect(
+      mutation.state.graph.nodes.some(node => node.scores.validationPressure > 0)
+    ).toBe(true);
+
+    const reloaded = await runtime.getActive(context);
+    expect(reloaded?.frontier?.selections[0]?.validationPressure ?? 0).toBeGreaterThan(0);
+  });
+
+  it('preserves validation pressure after decomposing within an unsatisfied active scope', async () => {
+    const store = createInMemoryStore();
+    const ids = createIdGenerator();
+    const runtime = createPlannerRuntime({
+      clock: { now: () => new Date('2026-04-18T10:15:00.000Z') },
+      ids,
+      store,
+    });
+    const context = { worktreePath: '/repo', opencodeSessionId: 'chat-4' };
+
+    await runtime.create(
+      context,
+      {
+        directories: { global: '/global', project: '/repo/.opencode/brhp/instructions' },
+        instructions: [],
+        counts: { global: 0, project: 0, total: 0, skipped: 0 },
+        skippedFiles: [],
+      },
+      'Preserve validation pressure after decomposition'
+    );
+
+    await runtime.recordValidation(context, {
+      clauses: [
+        {
+          kind: 'coverage',
+          blocking: true,
+          description: 'The active scope must still be decomposed further.',
+          status: 'pending',
+        },
+      ],
+    });
+
+    const validated = await runtime.getActive(context);
+    const rootNodeId = validated?.session.rootNodeId ?? '';
+
+    const mutation = await runtime.decomposeNode(context, {
+      nodeId: rootNodeId,
+      children: [
+        {
+          title: 'Keep frontier pressure on follow-up work',
+          problemStatement: 'The new child should inherit scope pressure while validation remains pending.',
+          category: 'dependent',
+        },
+      ],
+    });
+
+    expect(mutation.kind).toBe('decomposed');
+    if (mutation.kind !== 'decomposed') {
+      throw new Error('Expected decomposition mutation');
+    }
+
+    expect(
+      mutation.state.graph.nodes
+        .filter(node => node.parentNodeId === rootNodeId)
+        .some(node => node.scores.validationPressure > 0)
+    ).toBe(true);
+    expect(mutation.state.frontier?.selections.some(selection => selection.validationPressure > 0)).toBe(
+      true
+    );
   });
 
   it('rejects validation when no active session exists', async () => {
@@ -275,6 +343,8 @@ function createInMemoryStore() {
       states.set(patch.session.id, {
         ...existing,
         session: patch.session,
+        nodes: patch.updatedNodes,
+        frontier: patch.frontier,
         validation: patch.validation,
         events: existing.events.concat(patch.events),
       });

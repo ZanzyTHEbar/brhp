@@ -50,6 +50,11 @@ export function buildSidebarModel(
                 validation: planningSummary.validation,
               }
             : {}),
+          ...(planningSummary.frontier
+            ? {
+                frontier: planningSummary.frontier,
+              }
+            : {}),
         }
       : {
           active: false,

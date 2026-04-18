@@ -100,9 +100,9 @@ describe('buildSidebarModel', () => {
             invariants: [],
           },
           summary: {
-            globalEntropy: 0,
-            entropyDrift: 0,
-            frontierStability: 1,
+            globalEntropy: 0.8,
+            entropyDrift: 0.3,
+            frontierStability: 0.5,
             blockingFindings: 0,
             pendingBlockingClauses: 0,
             converged: false,
@@ -113,8 +113,42 @@ describe('buildSidebarModel', () => {
         },
         graph: {
           scopes: [{ id: 'scope-1' }],
-          nodes: [{ id: 'node-1' }, { id: 'node-2' }],
+          nodes: [
+            { id: 'node-1', title: 'Formalize BRHP root' },
+            { id: 'node-2', title: 'Expand scope coverage' },
+          ],
           edges: [{ id: 'edge-1' }],
+        },
+        frontier: {
+          id: 'frontier-1',
+          sessionId: 'session-1',
+          scopeId: 'scope-1',
+          temperature: 0.3,
+          globalEntropy: 0.8,
+          depthClamp: 4,
+          selections: [
+            {
+              nodeId: 'node-2',
+              scopeId: 'scope-1',
+              utility: 1,
+              localEntropy: 0.4,
+              validationPressure: 0.5,
+              probability: 0.7,
+              rank: 1,
+              depthClamp: 4,
+            },
+            {
+              nodeId: 'node-1',
+              scopeId: 'scope-1',
+              utility: 0.5,
+              localEntropy: 0.2,
+              validationPressure: 0,
+              probability: 0.3,
+              rank: 2,
+              depthClamp: 4,
+            },
+          ],
+          createdAt: '2026-04-17T12:05:00.000Z',
         },
         validation: {
           id: 'validation-1',
@@ -148,13 +182,24 @@ describe('buildSidebarModel', () => {
       scopeCount: 1,
       nodeCount: 2,
       edgeCount: 1,
-      validation: {
-        satisfiable: false,
-        blockingFindings: 0,
-        pendingBlockingClauses: 1,
-        clauseCount: 1,
-      },
-    });
+        validation: {
+          satisfiable: false,
+          blockingFindings: 0,
+          pendingBlockingClauses: 1,
+          clauseCount: 1,
+        },
+        frontier: {
+          selectionCount: 2,
+          topNodeId: 'node-2',
+          topNodeTitle: 'Expand scope coverage',
+          topProbability: 0.7,
+          maxValidationPressure: 0.5,
+          pressuredSelectionCount: 1,
+          globalEntropy: 0.8,
+          entropyDrift: 0.3,
+          frontierStability: 0.5,
+        },
+      });
   });
 
   it('falls back to session-level validation counters when the active scope has no validation snapshot', () => {

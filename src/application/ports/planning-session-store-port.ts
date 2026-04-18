@@ -38,6 +38,8 @@ export interface PlanningValidationRecordPatch {
   readonly session: PlanningSession;
   readonly previousSessionRevision: number;
   readonly validation: ValidationSnapshot;
+  readonly updatedNodes: readonly PlanNode[];
+  readonly frontier: FrontierSnapshot;
   readonly events: readonly PlanningEvent[];
 }
 

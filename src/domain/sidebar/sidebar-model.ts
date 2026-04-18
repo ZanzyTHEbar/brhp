@@ -36,6 +36,7 @@ export interface SidebarPlanningSummary {
   readonly nodeCount?: number;
   readonly edgeCount?: number;
   readonly validation?: SidebarValidationSummary;
+  readonly frontier?: SidebarFrontierSummary;
 }
 
 export interface SidebarValidationSummary {
@@ -43,4 +44,16 @@ export interface SidebarValidationSummary {
   readonly blockingFindings: number;
   readonly pendingBlockingClauses: number;
   readonly clauseCount: number;
+}
+
+export interface SidebarFrontierSummary {
+  readonly selectionCount: number;
+  readonly topNodeId?: string;
+  readonly topNodeTitle?: string;
+  readonly topProbability?: number;
+  readonly maxValidationPressure: number;
+  readonly pressuredSelectionCount: number;
+  readonly globalEntropy: number;
+  readonly entropyDrift: number;
+  readonly frontierStability: number;
 }

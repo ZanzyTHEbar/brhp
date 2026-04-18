@@ -51,6 +51,12 @@ export function buildSystemPromptSection(
               `Latest validation: ${planningSummary.validation.satisfiable ? 'satisfiable' : 'unsatisfied'} (${planningSummary.validation.blockingFindings} blocking, ${planningSummary.validation.pendingBlockingClauses} pending, ${planningSummary.validation.clauseCount} clauses)`,
             ]
           : []),
+        ...(planningSummary.frontier
+          ? [
+              `Current frontier: ${planningSummary.frontier.selectionCount} selections, top ${planningSummary.frontier.topNodeTitle ?? planningSummary.frontier.topNodeId ?? 'n/a'}${planningSummary.frontier.topProbability !== undefined ? ` (p=${planningSummary.frontier.topProbability.toFixed(3)})` : ''}`,
+              `Current validation pressure: max ${planningSummary.frontier.maxValidationPressure.toFixed(3)}, ${planningSummary.frontier.pressuredSelectionCount}/${planningSummary.frontier.selectionCount} selections pressured.`,
+            ]
+          : []),
         ...(planningSummary.invariants.length > 0
           ? ['Invariants:', ...planningSummary.invariants.map(invariant => `- ${invariant}`)]
           : []),

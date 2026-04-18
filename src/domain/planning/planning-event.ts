@@ -30,6 +30,7 @@ export interface PlanningEventPayloadByType {
     readonly temperature: number;
     readonly depthClamp: number;
     readonly globalEntropy: number;
+    readonly reason: 'seed' | 'decomposition' | 'validation';
   };
   'validation-recorded': {
     readonly validationId: string;

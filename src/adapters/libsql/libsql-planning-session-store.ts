@@ -197,6 +197,7 @@ export class LibsqlPlanningSessionStore
         session_id: patch.session.id,
         id: patch.updatedParentNode.id,
         status: patch.updatedParentNode.status,
+        validation_pressure: patch.updatedParentNode.scores.validationPressure,
         updated_at: patch.updatedParentNode.updatedAt,
           expected_status: patch.originalParentNode.status,
           expected_updated_at: patch.originalParentNode.updatedAt,
@@ -303,6 +304,29 @@ export class LibsqlPlanningSessionStore
         });
       }
 
+      for (const node of patch.updatedNodes) {
+        await executePlannerQuery(transaction, queries.UpdatePlanningNodeValidationPressure, {
+          session_id: patch.session.id,
+          id: node.id,
+          validation_pressure: node.scores.validationPressure,
+          updated_at: node.updatedAt,
+        });
+      }
+
+      await executePlannerQuery(
+        transaction,
+        queries.CreatePlanningFrontierSnapshot,
+        mapFrontierSnapshotArgs(patch.frontier)
+      );
+
+      for (const selection of patch.frontier.selections) {
+        await executePlannerQuery(
+          transaction,
+          queries.CreatePlanningFrontierSelection,
+          mapFrontierSelectionArgs(patch.frontier.id, selection)
+        );
+      }
+
       for (const event of patch.events) {
         await executePlannerQuery(transaction, queries.CreatePlanningEvent, {
           id: event.id,
@@ -317,15 +341,19 @@ export class LibsqlPlanningSessionStore
 
       const updatedSessionRows = await executePlannerQueryWithRowsAffected(
         transaction,
-        queries.UpdatePlanningSessionValidationSummary,
+        queries.UpdatePlanningSessionSummary,
         {
           id: patch.session.id,
           next_revision: patch.session.revision,
           expected_revision: patch.previousSessionRevision,
           status: patch.session.status,
+          global_entropy: patch.session.summary.globalEntropy,
+          entropy_drift: patch.session.summary.entropyDrift,
+          frontier_stability: patch.session.summary.frontierStability,
           blocking_findings: patch.session.summary.blockingFindings,
           pending_blocking_clauses: patch.session.summary.pendingBlockingClauses,
           converged: patch.session.summary.converged ? 1 : 0,
+          last_frontier_updated_at: patch.session.summary.lastFrontierUpdatedAt,
           updated_at: patch.session.updatedAt,
         }
       );

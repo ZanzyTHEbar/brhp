@@ -116,6 +116,16 @@ export function SidebarContent(props: SidebarContentProps) {
                         Validation: {currentModel.planning?.validation?.satisfiable ? 'satisfiable' : 'unsatisfied'} ({currentModel.planning?.validation?.blockingFindings} blocking, {currentModel.planning?.validation?.pendingBlockingClauses} pending, {currentModel.planning?.validation?.clauseCount} clauses)
                       </text>
                     </Show>
+                    <Show when={currentModel.planning?.frontier}>
+                      <text fg={colors().textMuted}>
+                        Frontier: {currentModel.planning?.frontier?.selectionCount} selections, top {currentModel.planning?.frontier?.topNodeTitle ?? currentModel.planning?.frontier?.topNodeId ?? 'n/a'}{currentModel.planning?.frontier?.topProbability !== undefined ? ` (p=${currentModel.planning?.frontier?.topProbability?.toFixed(3)})` : ''}
+                      </text>
+                    </Show>
+                    <Show when={currentModel.planning?.frontier}>
+                      <text fg={colors().textMuted}>
+                        Pressure: max {currentModel.planning?.frontier?.maxValidationPressure.toFixed(3)}, {currentModel.planning?.frontier?.pressuredSelectionCount}/{currentModel.planning?.frontier?.selectionCount} pressured, entropy {currentModel.planning?.frontier?.globalEntropy.toFixed(3)}, drift {currentModel.planning?.frontier?.entropyDrift.toFixed(3)}, stability {currentModel.planning?.frontier?.frontierStability.toFixed(3)}
+                      </text>
+                    </Show>
                   </box>
                 </Show>
 

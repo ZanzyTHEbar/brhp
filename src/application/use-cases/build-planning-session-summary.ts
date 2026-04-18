@@ -14,12 +14,32 @@ export interface PlanningSessionSummary {
     readonly pendingBlockingClauses: number;
     readonly clauseCount: number;
   };
+  readonly frontier?: {
+    readonly selectionCount: number;
+    readonly topNodeId?: string;
+    readonly topNodeTitle?: string;
+    readonly topProbability?: number;
+    readonly maxValidationPressure: number;
+    readonly pressuredSelectionCount: number;
+    readonly globalEntropy: number;
+    readonly entropyDrift: number;
+    readonly frontierStability: number;
+  };
   readonly invariants: readonly string[];
 }
 
 export function buildPlanningSessionSummary(
   state: PlanningState
 ): PlanningSessionSummary {
+  const nodeById = new Map(state.graph.nodes.map(node => [node.id, node]));
+  const topSelection = state.frontier?.selections[0];
+  const maxValidationPressure =
+    state.frontier && state.frontier.selections.length > 0
+      ? Math.max(...state.frontier.selections.map(selection => selection.validationPressure))
+      : 0;
+  const pressuredSelectionCount =
+    state.frontier?.selections.filter(selection => selection.validationPressure > 0).length ?? 0;
+
   return {
     id: state.session.id,
     status: state.session.status,
@@ -44,8 +64,25 @@ export function buildPlanningSessionSummary(
               blockingFindings: state.session.summary.blockingFindings,
               pendingBlockingClauses: state.session.summary.pendingBlockingClauses,
               clauseCount: 0,
-            },
-          }
+             },
+           }
+       : {}),
+    ...(state.frontier
+      ? {
+          frontier: {
+            selectionCount: state.frontier.selections.length,
+            maxValidationPressure,
+            pressuredSelectionCount,
+            globalEntropy: state.session.summary.globalEntropy,
+            entropyDrift: state.session.summary.entropyDrift,
+            frontierStability: state.session.summary.frontierStability,
+            ...(topSelection ? { topNodeId: topSelection.nodeId } : {}),
+            ...(topSelection && nodeById.get(topSelection.nodeId)?.title
+              ? { topNodeTitle: nodeById.get(topSelection.nodeId)!.title }
+              : {}),
+            ...(topSelection ? { topProbability: topSelection.probability } : {}),
+          },
+        }
       : {}),
     invariants: state.session.policy.invariants,
   };
