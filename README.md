@@ -1,13 +1,13 @@
 # brhp
 
-`brhp` is a single-package, TypeScript OpenCode plugin scaffold for OpenCode `v1.4.0+`.
+`brhp` is a single-package, TypeScript OpenCode plugin for OpenCode `v1.4.0+`.
 
 It ships two real plugin entrypoints:
 
 - **server entry** at the package root
 - **TUI entry** at `brhp/tui`
 
-The scaffold is intentionally minimal, but it is buildable, testable, and organized as a documented hexagonal architecture.
+The repository is being built in sequenced batches. The current baseline is buildable, testable, and organized as a documented hexagonal architecture with a formal BRHP planning core.
 
 ## Features
 
@@ -19,10 +19,12 @@ The scaffold is intentionally minimal, but it is buildable, testable, and organi
   - project: `.opencode/brhp/instructions`
 - `.md` and `.mdc` instruction support
 - optional YAML frontmatter (`title`, `description`, `order`, `enabled`)
+- local planner persistence in `.opencode/brhp/brhp.db`
 - system prompt injection through `experimental.chat.system.transform`
 - TUI sidebar scaffold on `sidebar_content`
+- formal BRHP planning domain model with explicit frontier, entropy, validation, and convergence math
 - package sanity check script
-- unit tests for instruction loading, prompt building, and slash command behavior
+- unit tests for instruction loading, prompt building, slash command behavior, and BRHP formalism primitives
 
 ## Verification nuance
 
@@ -69,6 +71,24 @@ pnpm build
 pnpm verify:package
 ```
 
+Validate the SQLite/sqlc planner contract:
+
+```bash
+pnpm db:compile
+pnpm db:vet
+```
+
+## BRHP commands
+
+`/brhp` supports a small runtime surface:
+
+- `/brhp`
+- `/brhp status`
+- `/brhp plan <problem statement>`
+- `/brhp resume <session-id>`
+
+Planning sessions are persisted to a local libsql database at `.opencode/brhp/brhp.db` inside the worktree.
+
 ## Plugin installation
 
 Example OpenCode config:
@@ -91,3 +111,5 @@ Example TUI config:
 ## Architecture
 
 See [docs/architecture.md](./docs/architecture.md).
+
+For the mathematical BRHP model, see [docs/formal-spec.md](./docs/formal-spec.md).
