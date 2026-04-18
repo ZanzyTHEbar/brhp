@@ -44,7 +44,13 @@ export function buildSystemPromptSection(
         'Use the BRHP tool flow when planning in this chat:',
         `- First call ${BRHP_TOOL_IDS.getActivePlan} to inspect the authoritative state.`,
         `- Then call ${BRHP_TOOL_IDS.decomposeNode} only when you need to decompose one existing node into explicit child nodes.`,
+        `- Call ${BRHP_TOOL_IDS.validateActiveScope} when you need to persist a deterministic validation verdict for the active scope.`,
         '- Do not invent planner state outside the tool results.',
+        ...(planningSummary.validation
+          ? [
+              `Latest validation: ${planningSummary.validation.satisfiable ? 'satisfiable' : 'unsatisfied'} (${planningSummary.validation.blockingFindings} blocking, ${planningSummary.validation.pendingBlockingClauses} pending, ${planningSummary.validation.clauseCount} clauses)`,
+            ]
+          : []),
         ...(planningSummary.invariants.length > 0
           ? ['Invariants:', ...planningSummary.invariants.map(invariant => `- ${invariant}`)]
           : []),

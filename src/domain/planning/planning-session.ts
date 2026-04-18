@@ -2,7 +2,7 @@ import type { FrontierSnapshot } from './frontier.js';
 import type { PlanEdge } from './plan-edge.js';
 import type { PlanNode } from './plan-node.js';
 import type { PlanningScope } from './planning-scope.js';
-import type { ValidationVerdict } from './validation.js';
+import type { ValidationSnapshot } from './validation.js';
 
 export const PLANNING_SESSION_STATUSES = [
   'draft',
@@ -66,5 +66,5 @@ export interface PlanningState {
   readonly session: PlanningSession;
   readonly graph: PlanningGraph;
   readonly frontier?: FrontierSnapshot;
-  readonly validation?: ValidationVerdict;
+  readonly validation?: ValidationSnapshot;
 }

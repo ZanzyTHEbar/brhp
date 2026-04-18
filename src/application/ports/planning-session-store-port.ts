@@ -7,6 +7,7 @@ import type {
   PlanningState,
 } from '../../domain/planning/planning-session.js';
 import type { PlanningScope } from '../../domain/planning/planning-scope.js';
+import type { ValidationSnapshot, ValidationVerdict } from '../../domain/planning/validation.js';
 
 export interface PlanningSessionContext {
   readonly worktreePath: string;
@@ -33,10 +34,18 @@ export interface PlanningNodeDecompositionPatch {
   readonly events: readonly PlanningEvent[];
 }
 
+export interface PlanningValidationRecordPatch {
+  readonly session: PlanningSession;
+  readonly previousSessionRevision: number;
+  readonly validation: ValidationSnapshot;
+  readonly events: readonly PlanningEvent[];
+}
+
 export interface PlanningSessionStorePort {
   createSession(seed: PlanningSessionSeed): Promise<void>;
   activateSession(context: PlanningSessionContext, sessionId: string): Promise<boolean>;
   applyNodeDecomposition(patch: PlanningNodeDecompositionPatch): Promise<void>;
+  applyValidationRecord(patch: PlanningValidationRecordPatch): Promise<void>;
 }
 
 export interface PlanningSessionQueryPort {

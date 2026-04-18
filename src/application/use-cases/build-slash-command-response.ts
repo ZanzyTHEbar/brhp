@@ -43,6 +43,11 @@ export function buildSlashCommandResponse(
           `- Status: ${planningSummary.status}`,
           `- Problem: ${planningSummary.initialProblem}`,
           `- Graph: ${planningSummary.scopeCount} scopes, ${planningSummary.nodeCount} nodes, ${planningSummary.edgeCount} edges`,
+          ...(planningSummary.validation
+            ? [
+                `- Validation: ${planningSummary.validation.satisfiable ? 'satisfiable' : 'unsatisfied'} (${planningSummary.validation.blockingFindings} blocking, ${planningSummary.validation.pendingBlockingClauses} pending, ${planningSummary.validation.clauseCount} clauses)`,
+              ]
+            : []),
         ]
       : ['- None active for this OpenCode session']),
     ...(mutationLines.length > 0 ? ['', 'Last action:', ...mutationLines] : []),
@@ -71,6 +76,10 @@ function renderMutation(mutation: PlannerRuntimeMutation): string[] {
       return [`- Resumed session ${mutation.state.session.id}`];
     case 'decomposed':
       return [`- Decomposed node ${mutation.nodeId} in session ${mutation.state.session.id}`];
+    case 'validation-recorded':
+      return [
+        `- Recorded validation ${mutation.validationId} for session ${mutation.state.session.id}`,
+      ];
     case 'resume-not-found':
       return [`- Session ${mutation.sessionId} was not found in this worktree`];
   }

@@ -71,6 +71,7 @@ describe('buildSystemPromptSection', () => {
           status: 'exploring',
           activeScopeId: 'scope-1',
           rootNodeId: 'node-1',
+          revision: 0,
           controls: {},
           policy: {
             policyDocumentIds: [],
@@ -94,6 +95,27 @@ describe('buildSystemPromptSection', () => {
           nodes: [{ id: 'node-1' }],
           edges: [],
         },
+        validation: {
+          id: 'validation-1',
+          sessionId: 'session-1',
+          scopeId: 'scope-1',
+          formula: {
+            scopeId: 'scope-1',
+            clauses: [
+              {
+                id: 'clause-1',
+                kind: 'coverage',
+                blocking: true,
+                description: 'The active scope must be fully decomposed.',
+                status: 'pending',
+              },
+            ],
+          },
+          satisfiable: false,
+          blockingFindings: 0,
+          pendingBlockingClauses: 1,
+          createdAt: '2026-04-17T12:05:00.000Z',
+        },
       } as never
     );
 
@@ -106,7 +128,9 @@ describe('buildSystemPromptSection', () => {
     expect(section).toContain('Problem: Formalize BRHP');
     expect(section).toContain('brhp_get_active_plan');
     expect(section).toContain('brhp_decompose_node');
+    expect(section).toContain('brhp_validate_active_scope');
     expect(section).toContain('First call brhp_get_active_plan');
+    expect(section).toContain('Latest validation: unsatisfied (0 blocking, 1 pending, 1 clauses)');
     expect(section).toContain('Invariants:');
     expect(section).toContain('- Keep changes durable');
   });

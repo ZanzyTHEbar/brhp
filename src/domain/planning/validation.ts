@@ -37,3 +37,10 @@ export interface ValidationVerdict {
   readonly blockingFindings: number;
   readonly pendingBlockingClauses: number;
 }
+
+export interface ValidationSnapshot extends ValidationVerdict {
+  readonly id: string;
+  readonly sessionId: string;
+  readonly scopeId: string;
+  readonly createdAt: string;
+}

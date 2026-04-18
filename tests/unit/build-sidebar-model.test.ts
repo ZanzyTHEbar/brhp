@@ -92,6 +92,7 @@ describe('buildSidebarModel', () => {
           status: 'exploring',
           activeScopeId: 'scope-1',
           rootNodeId: 'node-1',
+          revision: 0,
           controls: {},
           policy: {
             policyDocumentIds: [],
@@ -115,6 +116,27 @@ describe('buildSidebarModel', () => {
           nodes: [{ id: 'node-1' }, { id: 'node-2' }],
           edges: [{ id: 'edge-1' }],
         },
+        validation: {
+          id: 'validation-1',
+          sessionId: 'session-1',
+          scopeId: 'scope-1',
+          formula: {
+            scopeId: 'scope-1',
+            clauses: [
+              {
+                id: 'clause-1',
+                kind: 'coverage',
+                blocking: true,
+                description: 'The active scope must be fully decomposed.',
+                status: 'pending',
+              },
+            ],
+          },
+          satisfiable: false,
+          blockingFindings: 0,
+          pendingBlockingClauses: 1,
+          createdAt: '2026-04-17T12:05:00.000Z',
+        },
       } as never
     );
 
@@ -126,6 +148,72 @@ describe('buildSidebarModel', () => {
       scopeCount: 1,
       nodeCount: 2,
       edgeCount: 1,
+      validation: {
+        satisfiable: false,
+        blockingFindings: 0,
+        pendingBlockingClauses: 1,
+        clauseCount: 1,
+      },
+    });
+  });
+
+  it('falls back to session-level validation counters when the active scope has no validation snapshot', () => {
+    const model = buildSidebarModel(
+      {
+        directories: {
+          global: '/global/brhp/instructions',
+          project: '/repo/.opencode/brhp/instructions',
+        },
+        instructions: [],
+        counts: {
+          global: 0,
+          project: 0,
+          total: 0,
+          skipped: 0,
+        },
+        skippedFiles: [],
+      },
+      {
+        session: {
+          id: 'session-2',
+          worktreePath: '/repo',
+          opencodeSessionId: 'chat-2',
+          initialProblem: 'Validate BRHP',
+          status: 'validating',
+          activeScopeId: 'scope-2',
+          rootNodeId: 'node-1',
+          revision: 1,
+          controls: {},
+          policy: {
+            policyDocumentIds: [],
+            instructionDocumentIds: [],
+            invariants: [],
+          },
+          summary: {
+            globalEntropy: 0,
+            entropyDrift: 0,
+            frontierStability: 1,
+            blockingFindings: 0,
+            pendingBlockingClauses: 2,
+            converged: false,
+            lastFrontierUpdatedAt: '2026-04-17T12:00:00.000Z',
+          },
+          createdAt: '2026-04-17T12:00:00.000Z',
+          updatedAt: '2026-04-17T12:00:00.000Z',
+        },
+        graph: {
+          scopes: [{ id: 'scope-2' }],
+          nodes: [{ id: 'node-1' }],
+          edges: [],
+        },
+      } as never
+    );
+
+    expect(model.planning?.validation).toEqual({
+      satisfiable: false,
+      blockingFindings: 0,
+      pendingBlockingClauses: 2,
+      clauseCount: 0,
     });
   });
 });

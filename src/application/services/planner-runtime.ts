@@ -2,12 +2,17 @@ import type { ClockPort } from '../ports/clock-port.js';
 import type { IdGeneratorPort } from '../ports/id-generator-port.js';
 import type {
   PlanningNodeDecompositionPatch,
+  PlanningValidationRecordPatch,
   PlanningSessionContext,
   PlanningSessionQueryPort,
   PlanningSessionStorePort,
 } from '../ports/planning-session-store-port.js';
 import { decomposePlanningNode, type DecomposePlanningNodeChildInput } from '../use-cases/decompose-planning-node.js';
 import { createPlanningSessionSeed } from '../use-cases/create-planning-session-seed.js';
+import {
+  recordActiveScopeValidation,
+  type RecordActiveScopeValidationClauseInput,
+} from '../use-cases/record-active-scope-validation.js';
 import type { InstructionInventory } from '../../domain/instructions/instruction.js';
 import type { PlanningState } from '../../domain/planning/planning-session.js';
 
@@ -16,11 +21,16 @@ export type PlannerRuntimeMutation =
   | { readonly kind: 'created'; readonly state: PlanningState }
   | { readonly kind: 'resumed'; readonly state: PlanningState }
   | { readonly kind: 'resume-not-found'; readonly sessionId: string }
-  | { readonly kind: 'decomposed'; readonly state: PlanningState; readonly nodeId: string };
+  | { readonly kind: 'decomposed'; readonly state: PlanningState; readonly nodeId: string }
+  | { readonly kind: 'validation-recorded'; readonly state: PlanningState; readonly validationId: string };
 
 export interface DecomposePlanningNodeRequest {
   readonly nodeId: string;
   readonly children: readonly DecomposePlanningNodeChildInput[];
+}
+
+export interface RecordActiveScopeValidationRequest {
+  readonly clauses: readonly RecordActiveScopeValidationClauseInput[];
 }
 
 export interface PlannerRuntime {
@@ -37,6 +47,10 @@ export interface PlannerRuntime {
   decomposeNode(
     context: PlanningSessionContext,
     request: DecomposePlanningNodeRequest
+  ): Promise<PlannerRuntimeMutation>;
+  recordValidation(
+    context: PlanningSessionContext,
+    request: RecordActiveScopeValidationRequest
   ): Promise<PlannerRuntimeMutation>;
 }
 
@@ -126,6 +140,35 @@ export function createPlannerRuntime(input: CreatePlannerRuntimeInput): PlannerR
         kind: 'decomposed',
         state,
         nodeId: patch.updatedParentNode.id,
+      };
+    },
+
+    async recordValidation(context, request) {
+      const activeState = await input.store.getActiveSession(context);
+
+      if (!activeState) {
+        throw new Error('No active BRHP planning session exists for this OpenCode chat');
+      }
+
+      const patch = recordActiveScopeValidation({
+        clock: input.clock,
+        ids: input.ids,
+        state: activeState,
+        clauses: request.clauses,
+      });
+
+      await input.store.applyValidationRecord(patch);
+
+      const state = await input.store.getActiveSession(context);
+
+      if (!state) {
+        throw new Error('Planner validation completed but the active session could not be reloaded');
+      }
+
+      return {
+        kind: 'validation-recorded',
+        state,
+        validationId: patch.validation.id,
       };
     },
   };

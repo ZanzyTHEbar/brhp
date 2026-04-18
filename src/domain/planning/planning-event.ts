@@ -32,10 +32,12 @@ export interface PlanningEventPayloadByType {
     readonly globalEntropy: number;
   };
   'validation-recorded': {
+    readonly validationId: string;
     readonly scopeId: string;
     readonly satisfiable: boolean;
     readonly blockingFindings: number;
     readonly pendingBlockingClauses: number;
+    readonly clauseCount: number;
   };
 }
 

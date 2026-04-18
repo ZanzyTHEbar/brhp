@@ -45,6 +45,11 @@ export function buildSidebarModel(
           scopeCount: planningSummary.scopeCount,
           nodeCount: planningSummary.nodeCount,
           edgeCount: planningSummary.edgeCount,
+          ...(planningSummary.validation
+            ? {
+                validation: planningSummary.validation,
+              }
+            : {}),
         }
       : {
           active: false,

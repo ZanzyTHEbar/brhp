@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { PlanningState } from '../../src/domain/planning/planning-session.js';
 import { createPlannerRuntime } from '../../src/application/services/planner-runtime.js';
 import { createPlanningSessionSeed } from '../../src/application/use-cases/create-planning-session-seed.js';
 
@@ -146,10 +147,87 @@ describe('createPlannerRuntime', () => {
       })
     ).rejects.toThrow('has already been decomposed');
   });
+
+  it('records validation on the active scope and reloads state with the persisted verdict', async () => {
+    const store = createInMemoryStore();
+    const ids = createIdGenerator();
+    const runtime = createPlannerRuntime({
+      clock: { now: () => new Date('2026-04-18T10:10:00.000Z') },
+      ids,
+      store,
+    });
+    const context = { worktreePath: '/repo', opencodeSessionId: 'chat-2' };
+
+    await runtime.create(
+      context,
+      {
+        directories: { global: '/global', project: '/repo/.opencode/brhp/instructions' },
+        instructions: [],
+        counts: { global: 0, project: 0, total: 0, skipped: 0 },
+        skippedFiles: [],
+      },
+      'Validate BRHP planning state'
+    );
+
+    const mutation = await runtime.recordValidation(context, {
+      clauses: [
+        {
+          kind: 'schema',
+          blocking: true,
+          description: 'Planner session must have an active scope.',
+          status: 'passed',
+        },
+        {
+          kind: 'coverage',
+          blocking: true,
+          description: 'The active scope must be fully decomposed.',
+          status: 'pending',
+          message: 'More work remains.',
+        },
+      ],
+    });
+
+    expect(mutation.kind).toBe('validation-recorded');
+    if (mutation.kind !== 'validation-recorded') {
+      throw new Error('Expected validation mutation');
+    }
+
+    expect(mutation.state.validation?.pendingBlockingClauses).toBe(1);
+    expect(mutation.state.validation?.formula.clauses).toHaveLength(2);
+    expect(mutation.state.session.status).toBe('validating');
+  });
+
+  it('rejects validation when no active session exists', async () => {
+    const store = createInMemoryStore();
+    const runtime = createPlannerRuntime({
+      clock: { now: () => new Date('2026-04-18T10:00:00.000Z') },
+      ids: createIdGenerator(),
+      store,
+    });
+
+    await expect(
+      runtime.recordValidation(
+        { worktreePath: '/repo', opencodeSessionId: 'chat-3' },
+        {
+          clauses: [
+            {
+              kind: 'schema',
+              blocking: true,
+              description: 'x',
+              status: 'passed',
+            },
+          ],
+        }
+      )
+    ).rejects.toThrow('No active BRHP planning session exists');
+  });
 });
 
 function createInMemoryStore() {
-  const states = new Map<string, ReturnType<typeof createPlanningSessionSeed>>();
+  type TestState = ReturnType<typeof createPlanningSessionSeed> & {
+    validation?: PlanningState['validation'];
+  };
+  const states = new Map<string, TestState>();
   const activeByContext = new Map<string, string>();
 
   return {
@@ -189,6 +267,18 @@ function createInMemoryStore() {
         frontier: patch.frontier,
       });
     },
+    async applyValidationRecord(patch: any) {
+      const existing = states.get(patch.session.id);
+      if (!existing) {
+        throw new Error('Missing session');
+      }
+      states.set(patch.session.id, {
+        ...existing,
+        session: patch.session,
+        validation: patch.validation,
+        events: existing.events.concat(patch.events),
+      });
+    },
     async getActiveSession(context: { worktreePath: string; opencodeSessionId: string }) {
       const activeId = activeByContext.get(contextKey(context.worktreePath, context.opencodeSessionId));
       const state = activeId ? states.get(activeId) : undefined;
@@ -203,6 +293,7 @@ function createInMemoryStore() {
           edges: state.edges,
         },
         frontier: state.frontier,
+        ...(state.validation ? { validation: state.validation } : {}),
       };
     },
     async getSessionById(worktreePath: string, sessionId: string) {
@@ -218,6 +309,7 @@ function createInMemoryStore() {
           edges: state.edges,
         },
         frontier: state.frontier,
+        ...(state.validation ? { validation: state.validation } : {}),
       };
     },
     async listSessions(worktreePath: string) {

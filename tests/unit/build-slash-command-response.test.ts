@@ -49,6 +49,7 @@ describe('buildSlashCommandResponse', () => {
         status: 'exploring',
         activeScopeId: 'scope-1',
         rootNodeId: 'node-1',
+        revision: 0,
         controls: {
           temperature: 0.3,
           topP: 0.9,
@@ -80,6 +81,27 @@ describe('buildSlashCommandResponse', () => {
         nodes: [{ id: 'node-1' }],
         edges: [],
       },
+      validation: {
+        id: 'validation-1',
+        sessionId: 'session-1',
+        scopeId: 'scope-1',
+        formula: {
+          scopeId: 'scope-1',
+          clauses: [
+            {
+              id: 'clause-1',
+              kind: 'schema',
+              blocking: true,
+              description: 'Root scope must exist.',
+              status: 'passed',
+            },
+          ],
+        },
+        satisfiable: true,
+        blockingFindings: 0,
+        pendingBlockingClauses: 0,
+        createdAt: '2026-04-17T12:05:00.000Z',
+      },
     };
     const response = buildSlashCommandResponse(
       {
@@ -109,6 +131,7 @@ describe('buildSlashCommandResponse', () => {
     expect(response).toContain('- Status: exploring');
     expect(response).toContain('- Problem: Formalize BRHP');
     expect(response).toContain('- Graph: 1 scopes, 1 nodes, 0 edges');
+    expect(response).toContain('- Validation: satisfiable (0 blocking, 0 pending, 1 clauses)');
     expect(response).toContain('- Created session session-1');
   });
 });

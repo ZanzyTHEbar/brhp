@@ -231,6 +231,46 @@ INSERT INTO planner_events (
     sqlc.arg(occurred_at)
 );
 
+-- name: CreatePlanningValidationSnapshot :exec
+INSERT INTO planner_validation_snapshots (
+    id,
+    session_id,
+    scope_id,
+    satisfiable,
+    blocking_findings,
+    pending_blocking_clauses,
+    created_at
+) VALUES (
+    sqlc.arg(id),
+    sqlc.arg(session_id),
+    sqlc.arg(scope_id),
+    sqlc.arg(satisfiable),
+    sqlc.arg(blocking_findings),
+    sqlc.arg(pending_blocking_clauses),
+    sqlc.arg(created_at)
+);
+
+-- name: CreatePlanningValidationClause :exec
+INSERT INTO planner_validation_clauses (
+    snapshot_id,
+    ordinal,
+    clause_id,
+    kind,
+    blocking,
+    description,
+    status,
+    message
+) VALUES (
+    sqlc.arg(snapshot_id),
+    sqlc.arg(ordinal),
+    sqlc.arg(clause_id),
+    sqlc.arg(kind),
+    sqlc.arg(blocking),
+    sqlc.arg(description),
+    sqlc.arg(status),
+    sqlc.arg(message)
+);
+
 -- name: UpdatePlanningNodeStatus :exec
 UPDATE planner_nodes
 SET status = sqlc.arg(status),
@@ -251,6 +291,17 @@ SET revision = sqlc.arg(next_revision),
     pending_blocking_clauses = sqlc.arg(pending_blocking_clauses),
     converged = sqlc.arg(converged),
     last_frontier_updated_at = sqlc.arg(last_frontier_updated_at),
+    updated_at = sqlc.arg(updated_at)
+WHERE id = sqlc.arg(id)
+  AND revision = sqlc.arg(expected_revision);
+
+-- name: UpdatePlanningSessionValidationSummary :exec
+UPDATE planner_sessions
+SET revision = sqlc.arg(next_revision),
+    status = sqlc.arg(status),
+    blocking_findings = sqlc.arg(blocking_findings),
+    pending_blocking_clauses = sqlc.arg(pending_blocking_clauses),
+    converged = sqlc.arg(converged),
     updated_at = sqlc.arg(updated_at)
 WHERE id = sqlc.arg(id)
   AND revision = sqlc.arg(expected_revision);
@@ -462,3 +513,29 @@ SELECT snapshot_id,
 FROM planner_frontier_selections
 WHERE snapshot_id = sqlc.arg(snapshot_id)
 ORDER BY rank ASC;
+
+-- name: GetLatestPlanningValidationSnapshotByScope :one
+SELECT id,
+       session_id,
+       scope_id,
+       satisfiable,
+       blocking_findings,
+       pending_blocking_clauses,
+       created_at
+FROM planner_validation_snapshots
+WHERE scope_id = sqlc.arg(scope_id)
+ORDER BY created_at DESC, id DESC
+LIMIT 1;
+
+-- name: ListPlanningValidationClausesBySnapshot :many
+SELECT snapshot_id,
+       ordinal,
+       clause_id,
+       kind,
+       blocking,
+       description,
+       status,
+       message
+FROM planner_validation_clauses
+WHERE snapshot_id = sqlc.arg(snapshot_id)
+ORDER BY ordinal ASC;

@@ -35,4 +35,12 @@ export interface SidebarPlanningSummary {
   readonly scopeCount?: number;
   readonly nodeCount?: number;
   readonly edgeCount?: number;
+  readonly validation?: SidebarValidationSummary;
+}
+
+export interface SidebarValidationSummary {
+  readonly satisfiable: boolean;
+  readonly blockingFindings: number;
+  readonly pendingBlockingClauses: number;
+  readonly clauseCount: number;
 }

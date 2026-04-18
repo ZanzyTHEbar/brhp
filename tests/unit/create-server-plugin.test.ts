@@ -23,6 +23,7 @@ describe('createServerPluginHooks', () => {
     expect(Object.keys(hooks.tool ?? {})).toEqual([
       'brhp_get_active_plan',
       'brhp_decompose_node',
+      'brhp_validate_active_scope',
     ]);
   });
 
@@ -266,6 +267,56 @@ describe('createServerPluginHooks', () => {
 
       expect(decomposeToolOutput).toContain('"kind": "decomposed"');
       expect(decomposeToolOutput).toContain('Define graph tools');
+
+      const validateToolOutput = await hooks.tool?.brhp_validate_active_scope?.execute(
+        {
+          clauses: [
+            {
+              kind: 'structure',
+              blocking: true,
+              description: 'Every decomposed node must have at least one child edge.',
+              status: 'passed',
+            },
+            {
+              kind: 'coverage',
+              blocking: true,
+              description: 'The active scope must still have unresolved work.',
+              status: 'pending',
+              message: 'Additional child decomposition is still required.',
+            },
+          ],
+        },
+        {
+          sessionID: 'chat-b',
+          messageID: 'message-3',
+          agent: 'assistant',
+          directory: projectDirectory,
+          worktree: projectDirectory,
+          abort: new AbortController().signal,
+          metadata() {},
+          ask: async () => {},
+        } as never
+      );
+
+      expect(validateToolOutput).toContain('"kind": "validation-recorded"');
+      expect(validateToolOutput).toContain('"pendingBlockingClauses": 1');
+
+      const validatedPlanOutput = await hooks.tool?.brhp_get_active_plan?.execute(
+        {},
+        {
+          sessionID: 'chat-b',
+          messageID: 'message-4',
+          agent: 'assistant',
+          directory: projectDirectory,
+          worktree: projectDirectory,
+          abort: new AbortController().signal,
+          metadata() {},
+          ask: async () => {},
+        } as never
+      );
+
+      expect(validatedPlanOutput).toContain('"validation"');
+      expect(validatedPlanOutput).toContain('"pendingBlockingClauses": 1');
     } finally {
       if (originalConfigDirectory === undefined) {
         delete process.env.OPENCODE_CONFIG_DIR;

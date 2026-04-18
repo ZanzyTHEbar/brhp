@@ -13,8 +13,11 @@ export const PLANNER_QUERY_NAMES = [
   'CreatePlanningFrontierSnapshot',
   'CreatePlanningFrontierSelection',
   'CreatePlanningEvent',
+  'CreatePlanningValidationSnapshot',
+  'CreatePlanningValidationClause',
   'UpdatePlanningNodeStatus',
   'UpdatePlanningSessionSummary',
+  'UpdatePlanningSessionValidationSummary',
   'ListPlanningSessionsByWorktree',
   'GetActivePlanningSessionByContext',
   'GetPlanningSessionByID',
@@ -27,6 +30,8 @@ export const PLANNER_QUERY_NAMES = [
   'ListPlanningEventsBySession',
   'GetLatestPlanningFrontierSnapshotBySession',
   'ListPlanningFrontierSelectionsBySnapshot',
+  'GetLatestPlanningValidationSnapshotByScope',
+  'ListPlanningValidationClausesBySnapshot',
 ] as const;
 
 export type PlannerQueryName = (typeof PLANNER_QUERY_NAMES)[number];

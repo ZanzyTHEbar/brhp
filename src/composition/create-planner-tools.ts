@@ -88,5 +88,52 @@ export function createPlannerTools(
         return JSON.stringify(mutation, null, 2);
       },
     }),
+    [BRHP_TOOL_IDS.validateActiveScope]: tool({
+      description:
+        'Persist a deterministic validation verdict for the active BRHP scope in the current OpenCode chat. Read the active plan first.',
+      args: {
+        clauses: tool.schema
+          .array(
+            tool.schema.object({
+              id: tool.schema.string().min(1).optional(),
+              kind: tool.schema.enum(['schema', 'structure', 'dependency', 'conflict', 'coverage']),
+              blocking: tool.schema.boolean(),
+              description: tool.schema.string().min(1),
+              status: tool.schema.enum(['pending', 'passed', 'failed', 'skipped']),
+              message: tool.schema.string().min(1).optional(),
+            })
+          )
+          .min(1),
+      },
+      async execute(args, context) {
+        context.metadata({
+          title: 'Validate BRHP active scope',
+          metadata: {
+            tool: BRHP_TOOL_IDS.validateActiveScope,
+            clauseCount: args.clauses.length,
+          },
+        });
+
+        const runtime = await getRuntime(context.sessionID, context.worktree || context.directory);
+        const mutation = await runtime.recordValidation(
+          {
+            worktreePath: context.worktree || context.directory,
+            opencodeSessionId: context.sessionID,
+          },
+          {
+            clauses: args.clauses.map(clause => ({
+              ...(clause.id ? { id: clause.id } : {}),
+              kind: clause.kind,
+              blocking: clause.blocking,
+              description: clause.description,
+              status: clause.status,
+              ...(clause.message ? { message: clause.message } : {}),
+            })),
+          }
+        );
+
+        return JSON.stringify(mutation, null, 2);
+      },
+    }),
   };
 }

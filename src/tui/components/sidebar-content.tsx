@@ -111,6 +111,11 @@ export function SidebarContent(props: SidebarContentProps) {
                         edges
                       </text>
                     </Show>
+                    <Show when={currentModel.planning?.validation}>
+                      <text fg={colors().textMuted}>
+                        Validation: {currentModel.planning?.validation?.satisfiable ? 'satisfiable' : 'unsatisfied'} ({currentModel.planning?.validation?.blockingFindings} blocking, {currentModel.planning?.validation?.pendingBlockingClauses} pending, {currentModel.planning?.validation?.clauseCount} clauses)
+                      </text>
+                    </Show>
                   </box>
                 </Show>
 

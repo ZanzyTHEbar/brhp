@@ -42,10 +42,19 @@ VALUES (sqlc.arg(snapshot_id), sqlc.arg(rank));
 -- name: CreatePlanningEvent :exec
 INSERT INTO planner_events (id) VALUES (sqlc.arg(id));
 
+-- name: CreatePlanningValidationSnapshot :exec
+INSERT INTO planner_validation_snapshots (id, scope_id) VALUES (sqlc.arg(id), sqlc.arg(scope_id));
+
+-- name: CreatePlanningValidationClause :exec
+INSERT INTO planner_validation_clauses (snapshot_id, ordinal) VALUES (sqlc.arg(snapshot_id), sqlc.arg(ordinal));
+
 -- name: UpdatePlanningNodeStatus :exec
 UPDATE planner_nodes SET status = sqlc.arg(status) WHERE session_id = sqlc.arg(session_id) AND id = sqlc.arg(id);
 
 -- name: UpdatePlanningSessionSummary :exec
+UPDATE planner_sessions SET status = sqlc.arg(status) WHERE id = sqlc.arg(id);
+
+-- name: UpdatePlanningSessionValidationSummary :exec
 UPDATE planner_sessions SET status = sqlc.arg(status) WHERE id = sqlc.arg(id);
 
 -- name: ListPlanningSessionsByWorktree :many
@@ -92,6 +101,12 @@ SELECT id FROM planner_frontier_snapshots WHERE session_id = sqlc.arg(session_id
 
 -- name: ListPlanningFrontierSelectionsBySnapshot :many
 SELECT node_id FROM planner_frontier_selections WHERE snapshot_id = sqlc.arg(snapshot_id);
+
+-- name: GetLatestPlanningValidationSnapshotByScope :one
+SELECT id FROM planner_validation_snapshots WHERE scope_id = sqlc.arg(scope_id) LIMIT 1;
+
+-- name: ListPlanningValidationClausesBySnapshot :many
+SELECT clause_id FROM planner_validation_clauses WHERE snapshot_id = sqlc.arg(snapshot_id);
 `);
 
     expect(catalog.GetActivePlanningSessionByContext.command).toBe('one');
@@ -138,10 +153,19 @@ SELECT 1;
 -- name: CreatePlanningEvent :exec
 SELECT 1;
 
+-- name: CreatePlanningValidationSnapshot :exec
+SELECT 1;
+
+-- name: CreatePlanningValidationClause :exec
+SELECT 1;
+
 -- name: UpdatePlanningNodeStatus :exec
 SELECT 1;
 
 -- name: UpdatePlanningSessionSummary :exec
+SELECT 1;
+
+-- name: UpdatePlanningSessionValidationSummary :exec
 SELECT 1;
 
 -- name: ListPlanningSessionsByWorktree :many
@@ -178,6 +202,12 @@ SELECT 1;
 SELECT 1 LIMIT 1;
 
 -- name: ListPlanningFrontierSelectionsBySnapshot :many
+SELECT 1;
+
+-- name: GetLatestPlanningValidationSnapshotByScope :one
+SELECT 1 LIMIT 1;
+
+-- name: ListPlanningValidationClausesBySnapshot :many
 SELECT 1;
 `)
     ).toThrow('unsupported sqlc helpers');

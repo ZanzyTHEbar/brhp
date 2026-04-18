@@ -2,6 +2,7 @@ import type { Client } from '@libsql/client';
 
 import type {
   PlanningNodeDecompositionPatch,
+  PlanningValidationRecordPatch,
   PlanningSessionContext,
   PlanningSessionQueryPort,
   PlanningSessionSeed,
@@ -13,6 +14,12 @@ import type { PlanNode, PlanNodeCategory, PlanNodeStatus } from '../../domain/pl
 import type { PlanningEvent, PlanningEventPayloadByType, PlanningEventType } from '../../domain/planning/planning-event.js';
 import type { PlanningSession, PlanningSessionStatus, PlanningState } from '../../domain/planning/planning-session.js';
 import type { PlanningScope, PlanningScopeStatus } from '../../domain/planning/planning-scope.js';
+import type {
+  ValidationClause,
+  ValidationClauseKind,
+  ValidationClauseStatus,
+  ValidationSnapshot,
+} from '../../domain/planning/validation.js';
 import {
   executePlannerQuery,
   executePlannerQueryWithRowsAffected,
@@ -268,6 +275,74 @@ export class LibsqlPlanningSessionStore
     }
   }
 
+  async applyValidationRecord(patch: PlanningValidationRecordPatch): Promise<void> {
+    const queries = await this.#queryCatalogPromise;
+    const transaction = await this.#client.transaction('write');
+
+    try {
+      await executePlannerQuery(transaction, queries.CreatePlanningValidationSnapshot, {
+        id: patch.validation.id,
+        session_id: patch.validation.sessionId,
+        scope_id: patch.validation.scopeId,
+        satisfiable: patch.validation.satisfiable ? 1 : 0,
+        blocking_findings: patch.validation.blockingFindings,
+        pending_blocking_clauses: patch.validation.pendingBlockingClauses,
+        created_at: patch.validation.createdAt,
+      });
+
+      for (const [index, clause] of patch.validation.formula.clauses.entries()) {
+        await executePlannerQuery(transaction, queries.CreatePlanningValidationClause, {
+          snapshot_id: patch.validation.id,
+          ordinal: index,
+          clause_id: clause.id,
+          kind: clause.kind,
+          blocking: clause.blocking ? 1 : 0,
+          description: clause.description,
+          status: clause.status,
+          message: clause.message ?? null,
+        });
+      }
+
+      for (const event of patch.events) {
+        await executePlannerQuery(transaction, queries.CreatePlanningEvent, {
+          id: event.id,
+          session_id: event.sessionId,
+          scope_id: event.scopeId ?? null,
+          node_id: event.nodeId ?? null,
+          type: event.type,
+          payload_json: JSON.stringify(event.payload),
+          occurred_at: event.occurredAt,
+        });
+      }
+
+      const updatedSessionRows = await executePlannerQueryWithRowsAffected(
+        transaction,
+        queries.UpdatePlanningSessionValidationSummary,
+        {
+          id: patch.session.id,
+          next_revision: patch.session.revision,
+          expected_revision: patch.previousSessionRevision,
+          status: patch.session.status,
+          blocking_findings: patch.session.summary.blockingFindings,
+          pending_blocking_clauses: patch.session.summary.pendingBlockingClauses,
+          converged: patch.session.summary.converged ? 1 : 0,
+          updated_at: patch.session.updatedAt,
+        }
+      );
+
+      if (updatedSessionRows !== 1) {
+        throw new Error(
+          `Planning session '${patch.session.id}' changed concurrently while recording validation`
+        );
+      }
+
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
   async getActiveSession(context: PlanningSessionContext): Promise<PlanningState | null> {
     const queries = await this.#queryCatalogPromise;
     const sessionRow = await fetchPlannerQueryOne(
@@ -319,7 +394,7 @@ export class LibsqlPlanningSessionStore
   async #hydratePlanningState(sessionRow: LibsqlQueryRow): Promise<PlanningState> {
     const queries = await this.#queryCatalogPromise;
     const session = await this.#hydratePlanningSession(sessionRow);
-    const [scopeRows, nodeRows, edgeRows, frontierRow] = await Promise.all([
+    const [scopeRows, nodeRows, edgeRows, frontierRow, validationRow] = await Promise.all([
       fetchPlannerQueryMany(this.#client, queries.ListPlanningScopesBySession, {
         session_id: session.id,
       }),
@@ -332,10 +407,16 @@ export class LibsqlPlanningSessionStore
       fetchPlannerQueryOne(this.#client, queries.GetLatestPlanningFrontierSnapshotBySession, {
         session_id: session.id,
       }),
+      fetchPlannerQueryOne(this.#client, queries.GetLatestPlanningValidationSnapshotByScope, {
+        scope_id: session.activeScopeId,
+      }),
     ]);
 
     const frontier = frontierRow
       ? await this.#hydrateFrontierSnapshot(session.id, frontierRow)
+      : undefined;
+    const validation = validationRow
+      ? await this.#hydrateValidationSnapshot(validationRow)
       : undefined;
 
     return {
@@ -346,6 +427,7 @@ export class LibsqlPlanningSessionStore
         edges: edgeRows.map(mapEdgeRow),
       },
       ...(frontier ? { frontier } : {}),
+      ...(validation ? { validation } : {}),
     };
   }
 
@@ -385,6 +467,31 @@ export class LibsqlPlanningSessionStore
       depthClamp: readNumber(frontierRow, 'depth_clamp'),
       selections: selectionRows.map(mapFrontierSelectionRow),
       createdAt: readString(frontierRow, 'created_at'),
+    };
+  }
+
+  async #hydrateValidationSnapshot(validationRow: LibsqlQueryRow): Promise<ValidationSnapshot> {
+    const queries = await this.#queryCatalogPromise;
+    const clauseRows = await fetchPlannerQueryMany(
+      this.#client,
+      queries.ListPlanningValidationClausesBySnapshot,
+      {
+        snapshot_id: readString(validationRow, 'id'),
+      }
+    );
+
+    return {
+      id: readString(validationRow, 'id'),
+      sessionId: readString(validationRow, 'session_id'),
+      scopeId: readString(validationRow, 'scope_id'),
+      formula: {
+        scopeId: readString(validationRow, 'scope_id'),
+        clauses: clauseRows.map(mapValidationClauseRow),
+      },
+      satisfiable: readBoolean(validationRow, 'satisfiable'),
+      blockingFindings: readNumber(validationRow, 'blocking_findings'),
+      pendingBlockingClauses: readNumber(validationRow, 'pending_blocking_clauses'),
+      createdAt: readString(validationRow, 'created_at'),
     };
   }
 }
@@ -628,6 +735,19 @@ function mapFrontierSelectionRow(row: LibsqlQueryRow): FrontierSelection {
     probability: readNumber(row, 'probability'),
     rank: readNumber(row, 'rank'),
     depthClamp: readNumber(row, 'depth_clamp'),
+  };
+}
+
+function mapValidationClauseRow(row: LibsqlQueryRow): ValidationClause {
+  return {
+    id: readString(row, 'clause_id'),
+    kind: readString(row, 'kind') as ValidationClauseKind,
+    blocking: readBoolean(row, 'blocking'),
+    description: readString(row, 'description'),
+    status: readString(row, 'status') as ValidationClauseStatus,
+    ...(readNullableString(row, 'message') !== null
+      ? { message: readString(row, 'message') }
+      : {}),
   };
 }
 
