@@ -325,6 +325,7 @@ describe('createServerPluginHooks', () => {
       expect(validatedPlanOutput).toContain('"pendingBlockingClauses": 1');
       expect(validatedPlanOutput).toContain('"frontier"');
       expect(validatedPlanOutput).toContain('"validationPressure"');
+      expect(validatedPlanOutput).toContain('"recentEvents"');
 
       const statusOutput = {
         parts: [{ type: 'text', text: 'replace me' }],
@@ -342,6 +343,8 @@ describe('createServerPluginHooks', () => {
       const statusText = String(statusOutput.parts[0]?.text ?? '');
       expect(statusText).toContain('- Frontier:');
       expect(statusText).toContain('- Pressure:');
+      expect(statusText).toContain('- Recent activity:');
+      expect(statusText).toContain('Validation recorded: unsatisfied');
     } finally {
       if (originalConfigDirectory === undefined) {
         delete process.env.OPENCODE_CONFIG_DIR;

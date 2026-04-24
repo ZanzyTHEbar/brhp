@@ -55,6 +55,11 @@ export function buildSidebarModel(
                 frontier: planningSummary.frontier,
               }
             : {}),
+          ...(planningSummary.recentActivity
+            ? {
+                recentActivity: planningSummary.recentActivity,
+              }
+            : {}),
         }
       : {
           active: false,

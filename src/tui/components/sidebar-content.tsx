@@ -126,6 +126,16 @@ export function SidebarContent(props: SidebarContentProps) {
                         Pressure: max {currentModel.planning?.frontier?.maxValidationPressure.toFixed(3)}, {currentModel.planning?.frontier?.pressuredSelectionCount}/{currentModel.planning?.frontier?.selectionCount} pressured, entropy {currentModel.planning?.frontier?.globalEntropy.toFixed(3)}, drift {currentModel.planning?.frontier?.entropyDrift.toFixed(3)}, stability {currentModel.planning?.frontier?.frontierStability.toFixed(3)}
                       </text>
                     </Show>
+                    <Show when={currentModel.planning?.recentActivity?.length}> 
+                      <box flexDirection="column">
+                        <text fg={colors().textMuted}>Recent activity:</text>
+                        <For each={currentModel.planning?.recentActivity}>
+                          {activity => (
+                            <text fg={colors().textMuted}>• {activity.label}</text>
+                          )}
+                        </For>
+                      </box>
+                    </Show>
                   </box>
                 </Show>
 

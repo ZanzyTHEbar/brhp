@@ -48,6 +48,9 @@ describe('LibsqlPlanningSessionStore', () => {
       expect(active?.graph.edges).toHaveLength(0);
       expect(active?.frontier?.selections).toHaveLength(1);
       expect(active?.frontier?.selections[0]?.nodeId).toBe(seed.nodes[0]?.id);
+      expect(active?.recentEvents).toHaveLength(4);
+      expect(active?.recentEvents?.[0]?.type).toBe('frontier-snapshotted');
+      expect(active?.recentEvents?.at(-1)?.type).toBe('session-created');
       expect(sessions).toHaveLength(1);
       expect(sessions[0]?.id).toBe(seed.session.id);
     } finally {
@@ -236,6 +239,57 @@ describe('LibsqlPlanningSessionStore', () => {
       expect(reloaded?.graph.nodes.find(node => node.id === rootNodeId)?.status).toBe('decomposed');
       expect(reloaded?.frontier?.selections.length).toBeGreaterThan(0);
       expect(reloaded?.session.summary.lastFrontierUpdatedAt).toBe('2026-04-18T12:00:00.000Z');
+    } finally {
+      database.close();
+      await rm(worktreePath, { recursive: true, force: true });
+    }
+  });
+
+  it('caps recent hydrated planner events to the newest configured window', async () => {
+    const worktreePath = await mkdtemp(path.join(os.tmpdir(), 'brhp-libsql-events-limit-'));
+    const database = await openPlanningDatabase({ worktreePath });
+
+    try {
+      const store = new LibsqlPlanningSessionStore(database.client);
+      const seed = createPlanningSessionSeed({
+        clock: { now: () => new Date('2026-04-17T12:00:00.000Z') },
+        ids: createIdGenerator(),
+        worktreePath,
+        opencodeSessionId: 'oc-session-limit',
+        problemStatement: 'Bound recent planner activity hydration.',
+      });
+
+      await store.createSession(seed);
+
+      for (let index = 0; index < 12; index += 1) {
+        await database.client.execute({
+          sql: `
+            INSERT INTO planner_events (id, session_id, type, payload_json, occurred_at)
+            VALUES (:id, :session_id, 'frontier-snapshotted', :payload_json, :occurred_at)
+          `,
+          args: {
+            id: `extra-event-${index}`,
+            session_id: seed.session.id,
+            payload_json: JSON.stringify({
+              frontierId: `frontier-${index}`,
+              temperature: 0.3,
+              depthClamp: 4,
+              globalEntropy: index / 10,
+              reason: 'validation',
+            }),
+            occurred_at: `2026-04-17T12:${String(index + 1).padStart(2, '0')}:00.000Z`,
+          },
+        });
+      }
+
+      const active = await store.getActiveSession({
+        worktreePath,
+        opencodeSessionId: 'oc-session-limit',
+      });
+
+      expect(active?.recentEvents).toHaveLength(10);
+      expect(active?.recentEvents?.[0]?.id).toBe('extra-event-11');
+      expect(active?.recentEvents?.at(-1)?.id).toBe('extra-event-2');
     } finally {
       database.close();
       await rm(worktreePath, { recursive: true, force: true });

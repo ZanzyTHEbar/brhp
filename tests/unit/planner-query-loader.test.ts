@@ -93,8 +93,10 @@ SELECT id FROM planner_nodes WHERE session_id = sqlc.arg(session_id);
 -- name: ListPlanningEdgesBySession :many
 SELECT id FROM planner_edges WHERE session_id = sqlc.arg(session_id);
 
--- name: ListPlanningEventsBySession :many
-SELECT id FROM planner_events WHERE session_id = sqlc.arg(session_id);
+-- name: ListRecentPlanningEventsBySession :many
+SELECT id FROM planner_events
+WHERE session_id = sqlc.arg(session_id)
+LIMIT sqlc.arg(limit_count);
 
 -- name: GetLatestPlanningFrontierSnapshotBySession :one
 SELECT id FROM planner_frontier_snapshots WHERE session_id = sqlc.arg(session_id) LIMIT 1;
@@ -118,6 +120,10 @@ SELECT clause_id FROM planner_validation_clauses WHERE snapshot_id = sqlc.arg(sn
       'opencode_session_id',
     ]);
     expect(catalog.CreatePlanningSessionDocument.sql).toContain(':document_id');
+    expect(catalog.ListRecentPlanningEventsBySession.parameterNames).toEqual([
+      'session_id',
+      'limit_count',
+    ]);
   });
 
   it('rejects unsupported sqlc helpers', () => {
@@ -195,8 +201,8 @@ SELECT 1;
 -- name: ListPlanningEdgesBySession :many
 SELECT 1;
 
--- name: ListPlanningEventsBySession :many
-SELECT 1;
+-- name: ListRecentPlanningEventsBySession :many
+SELECT 1 LIMIT sqlc.arg(limit_count);
 
 -- name: GetLatestPlanningFrontierSnapshotBySession :one
 SELECT 1 LIMIT 1;

@@ -27,7 +27,7 @@ export const PLANNER_QUERY_NAMES = [
   'ListPlanningScopesBySession',
   'ListPlanningNodesBySession',
   'ListPlanningEdgesBySession',
-  'ListPlanningEventsBySession',
+  'ListRecentPlanningEventsBySession',
   'GetLatestPlanningFrontierSnapshotBySession',
   'ListPlanningFrontierSelectionsBySnapshot',
   'GetLatestPlanningValidationSnapshotByScope',

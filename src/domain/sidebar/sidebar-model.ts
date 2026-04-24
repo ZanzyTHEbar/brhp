@@ -37,6 +37,7 @@ export interface SidebarPlanningSummary {
   readonly edgeCount?: number;
   readonly validation?: SidebarValidationSummary;
   readonly frontier?: SidebarFrontierSummary;
+  readonly recentActivity?: readonly SidebarPlanningActivityItem[];
 }
 
 export interface SidebarValidationSummary {
@@ -56,4 +57,9 @@ export interface SidebarFrontierSummary {
   readonly globalEntropy: number;
   readonly entropyDrift: number;
   readonly frontierStability: number;
+}
+
+export interface SidebarPlanningActivityItem {
+  readonly occurredAt: string;
+  readonly label: string;
 }

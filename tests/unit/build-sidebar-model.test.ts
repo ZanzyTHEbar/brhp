@@ -171,6 +171,19 @@ describe('buildSidebarModel', () => {
           pendingBlockingClauses: 1,
           createdAt: '2026-04-17T12:05:00.000Z',
         },
+        recentEvents: [
+          {
+            id: 'event-1',
+            sessionId: 'session-1',
+            type: 'node-decomposed',
+            occurredAt: '2026-04-17T12:06:00.000Z',
+            payload: {
+              childNodeIds: ['node-2'],
+              previousStatus: 'active',
+              nextStatus: 'decomposed',
+            },
+          },
+        ],
       } as never
     );
 
@@ -199,6 +212,12 @@ describe('buildSidebarModel', () => {
           entropyDrift: 0.3,
           frontierStability: 0.5,
         },
+        recentActivity: [
+          {
+            occurredAt: '2026-04-17T12:06:00.000Z',
+            label: 'Node decomposed into 1 children',
+          },
+        ],
       });
   });
 

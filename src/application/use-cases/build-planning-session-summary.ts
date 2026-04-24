@@ -1,4 +1,5 @@
 import type { PlanningState } from '../../domain/planning/planning-session.js';
+import type { PlanningEvent } from '../../domain/planning/planning-event.js';
 
 export interface PlanningSessionSummary {
   readonly id: string;
@@ -25,7 +26,13 @@ export interface PlanningSessionSummary {
     readonly entropyDrift: number;
     readonly frontierStability: number;
   };
+  readonly recentActivity?: readonly PlanningActivitySummary[];
   readonly invariants: readonly string[];
+}
+
+export interface PlanningActivitySummary {
+  readonly occurredAt: string;
+  readonly label: string;
 }
 
 export function buildPlanningSessionSummary(
@@ -39,6 +46,7 @@ export function buildPlanningSessionSummary(
       : 0;
   const pressuredSelectionCount =
     state.frontier?.selections.filter(selection => selection.validationPressure > 0).length ?? 0;
+  const recentActivity = (state.recentEvents ?? []).map(event => summarizePlanningEvent(event));
 
   return {
     id: state.session.id,
@@ -84,6 +92,47 @@ export function buildPlanningSessionSummary(
           },
         }
       : {}),
+    ...(recentActivity.length > 0 ? { recentActivity } : {}),
     invariants: state.session.policy.invariants,
   };
+}
+
+function summarizePlanningEvent(event: PlanningEvent): PlanningActivitySummary {
+  switch (event.type) {
+    case 'session-created':
+      return {
+        occurredAt: event.occurredAt,
+        label: `Session created for "${event.payload.initialProblem}"`,
+      };
+    case 'scope-created':
+      return {
+        occurredAt: event.occurredAt,
+        label: `Scope created: ${event.payload.title}`,
+      };
+    case 'node-created':
+      return {
+        occurredAt: event.occurredAt,
+        label: `Node created: ${event.payload.title}`,
+      };
+    case 'node-decomposed':
+      return {
+        occurredAt: event.occurredAt,
+        label: `Node decomposed into ${event.payload.childNodeIds.length} children`,
+      };
+    case 'edge-created':
+      return {
+        occurredAt: event.occurredAt,
+        label: `Edge created: ${event.payload.kind}`,
+      };
+    case 'frontier-snapshotted':
+      return {
+        occurredAt: event.occurredAt,
+        label: `Frontier recomputed after ${event.payload.reason}`,
+      };
+    case 'validation-recorded':
+      return {
+        occurredAt: event.occurredAt,
+        label: `Validation recorded: ${event.payload.satisfiable ? 'satisfiable' : 'unsatisfied'} (${event.payload.blockingFindings} blocking, ${event.payload.pendingBlockingClauses} pending)`,
+      };
+  }
 }

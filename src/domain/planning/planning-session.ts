@@ -1,5 +1,6 @@
 import type { FrontierSnapshot } from './frontier.js';
 import type { PlanEdge } from './plan-edge.js';
+import type { PlanningEvent } from './planning-event.js';
 import type { PlanNode } from './plan-node.js';
 import type { PlanningScope } from './planning-scope.js';
 import type { ValidationSnapshot } from './validation.js';
@@ -67,4 +68,5 @@ export interface PlanningState {
   readonly graph: PlanningGraph;
   readonly frontier?: FrontierSnapshot;
   readonly validation?: ValidationSnapshot;
+  readonly recentEvents?: readonly PlanningEvent[];
 }

@@ -472,7 +472,7 @@ FROM planner_edges
 WHERE session_id = sqlc.arg(session_id)
 ORDER BY created_at ASC, id ASC;
 
--- name: ListPlanningEventsBySession :many
+-- name: ListRecentPlanningEventsBySession :many
 SELECT id,
        session_id,
        scope_id,
@@ -482,7 +482,8 @@ SELECT id,
        occurred_at
 FROM planner_events
 WHERE session_id = sqlc.arg(session_id)
-ORDER BY occurred_at ASC, id ASC;
+ORDER BY occurred_at DESC, rowid DESC
+LIMIT sqlc.arg(limit_count);
 
 -- name: GetLatestPlanningFrontierSnapshotBySession :one
 SELECT id,

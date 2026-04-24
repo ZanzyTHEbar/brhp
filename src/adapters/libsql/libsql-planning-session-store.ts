@@ -11,7 +11,12 @@ import type {
 import type { FrontierSnapshot, FrontierSelection } from '../../domain/planning/frontier.js';
 import type { PlanEdge } from '../../domain/planning/plan-edge.js';
 import type { PlanNode, PlanNodeCategory, PlanNodeStatus } from '../../domain/planning/plan-node.js';
-import type { PlanningEvent, PlanningEventPayloadByType, PlanningEventType } from '../../domain/planning/planning-event.js';
+import {
+  RECENT_PLANNING_EVENTS_LIMIT,
+  type PlanningEvent,
+  type PlanningEventPayloadByType,
+  type PlanningEventType,
+} from '../../domain/planning/planning-event.js';
 import type { PlanningSession, PlanningSessionStatus, PlanningState } from '../../domain/planning/planning-session.js';
 import type { PlanningScope, PlanningScopeStatus } from '../../domain/planning/planning-scope.js';
 import type {
@@ -422,7 +427,7 @@ export class LibsqlPlanningSessionStore
   async #hydratePlanningState(sessionRow: LibsqlQueryRow): Promise<PlanningState> {
     const queries = await this.#queryCatalogPromise;
     const session = await this.#hydratePlanningSession(sessionRow);
-    const [scopeRows, nodeRows, edgeRows, frontierRow, validationRow] = await Promise.all([
+    const [scopeRows, nodeRows, edgeRows, eventRows, frontierRow, validationRow] = await Promise.all([
       fetchPlannerQueryMany(this.#client, queries.ListPlanningScopesBySession, {
         session_id: session.id,
       }),
@@ -431,6 +436,10 @@ export class LibsqlPlanningSessionStore
       }),
       fetchPlannerQueryMany(this.#client, queries.ListPlanningEdgesBySession, {
         session_id: session.id,
+      }),
+      fetchPlannerQueryMany(this.#client, queries.ListRecentPlanningEventsBySession, {
+        session_id: session.id,
+        limit_count: RECENT_PLANNING_EVENTS_LIMIT,
       }),
       fetchPlannerQueryOne(this.#client, queries.GetLatestPlanningFrontierSnapshotBySession, {
         session_id: session.id,
@@ -446,6 +455,7 @@ export class LibsqlPlanningSessionStore
     const validation = validationRow
       ? await this.#hydrateValidationSnapshot(validationRow)
       : undefined;
+    const recentEvents = eventRows.map(mapPlanningEventRow);
 
     return {
       session,
@@ -454,6 +464,7 @@ export class LibsqlPlanningSessionStore
         nodes: nodeRows.map(mapNodeRow),
         edges: edgeRows.map(mapEdgeRow),
       },
+      ...(recentEvents.length > 0 ? { recentEvents } : {}),
       ...(frontier ? { frontier } : {}),
       ...(validation ? { validation } : {}),
     };
@@ -764,6 +775,22 @@ function mapFrontierSelectionRow(row: LibsqlQueryRow): FrontierSelection {
     rank: readNumber(row, 'rank'),
     depthClamp: readNumber(row, 'depth_clamp'),
   };
+}
+
+function mapPlanningEventRow(row: LibsqlQueryRow): PlanningEvent {
+  const type = readString(row, 'type') as PlanningEventType;
+  const scopeId = readNullableString(row, 'scope_id');
+  const nodeId = readNullableString(row, 'node_id');
+
+  return {
+    id: readString(row, 'id'),
+    sessionId: readString(row, 'session_id'),
+    ...(scopeId ? { scopeId } : {}),
+    ...(nodeId ? { nodeId } : {}),
+    type,
+    payload: parsePlanningEventPayload(type, readString(row, 'payload_json')),
+    occurredAt: readString(row, 'occurred_at'),
+  } as PlanningEvent;
 }
 
 function mapValidationClauseRow(row: LibsqlQueryRow): ValidationClause {

@@ -54,6 +54,12 @@ export function buildSlashCommandResponse(
                 `- Pressure: max ${planningSummary.frontier.maxValidationPressure.toFixed(3)}, ${planningSummary.frontier.pressuredSelectionCount}/${planningSummary.frontier.selectionCount} selections pressured, entropy ${planningSummary.frontier.globalEntropy.toFixed(3)}, drift ${planningSummary.frontier.entropyDrift.toFixed(3)}, stability ${planningSummary.frontier.frontierStability.toFixed(3)}`,
               ]
             : []),
+          ...(planningSummary.recentActivity && planningSummary.recentActivity.length > 0
+            ? [
+                '- Recent activity:',
+                ...planningSummary.recentActivity.map(activity => `  - ${activity.label}`),
+              ]
+            : []),
         ]
       : ['- None active for this OpenCode session']),
     ...(mutationLines.length > 0 ? ['', 'Last action:', ...mutationLines] : []),
