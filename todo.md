@@ -4,18 +4,18 @@
 
 This file is a curated engineering backlog, not a release promise. Deferred roadmap items below are intentionally out of current scope.
 
-1. Batch 8: align docs and spec with current runtime behavior
-   - signed entropy drift in the formal spec
-   - current policy-state reality: instruction-derived invariants are implemented, explicit policy-document provenance is reserved
-   - curate this backlog into active work vs deferred roadmap
+1. Batch 10: formalize BRHP v1 convergence and provenance boundaries
+   - require explicit decomposition before a session may converge
+   - formally defer explicit policy-document provenance in BRHP v1
+   - align docs with the shipped server operation-scoped runtime model
 
-2. Batch 9: harden server planner runtime lifecycle
-   - explicit ownership/disposal semantics for the server-side planner runtime
-   - failure-path coverage for runtime initialization and teardown
+2. Next candidate batch: improve operator read models
+   - decide whether planner event history should become part of the hydrated read model
+   - improve TUI error wording so runtime/database failures are distinguishable from instruction-load failures
 
-3. Batch 10: decide policy provenance scope
-   - either implement explicit policy-document provenance or formally defer it
-   - keep instruction-derived invariants as the current source of truth until that decision is made
+3. Next candidate batch: richer planning completion semantics
+   - decide whether convergence should later require leaf completion, coverage closure, or both
+   - keep current v1 rule minimal and explicit until that decision is made
 
 ## Landed foundation
 
@@ -29,7 +29,9 @@ This file is a curated engineering backlog, not a release promise. Deferred road
   - `brhp_validate_active_scope`
 - deterministic validation snapshot persistence
 - frontier recomputation and validation-aware selection pressure
-- runtime convergence derived from current planner state
+- runtime convergence derived from current planner state plus explicit decomposition evidence
+- server runtime access hardened with per-operation lifecycle management
+- TUI runtime ownership hardened with explicit disposal and failure-path cleanup
 
 ## Deferred advanced roadmap
 

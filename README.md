@@ -24,6 +24,7 @@ The repository is being built in sequenced batches. The current baseline is buil
 - TUI sidebar scaffold on `sidebar_content`
 - formal BRHP planning domain model with explicit frontier, entropy, validation, and convergence math
 - instruction-derived invariants seeded into planning sessions
+- v1 convergence requires explicit decomposition before a session may settle as `converged`
 - package sanity check script
 - unit tests for instruction loading, prompt building, slash command behavior, and BRHP formalism primitives
 
@@ -89,6 +90,8 @@ pnpm db:vet
 - `/brhp resume <session-id>`
 
 Planning sessions are persisted to a local libsql database at `.opencode/brhp/brhp.db` inside the worktree.
+
+BRHP v1 intentionally derives planner invariants from loaded instruction content. Explicit policy-document provenance remains formally deferred.
 
 ## Plugin installation
 

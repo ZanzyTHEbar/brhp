@@ -62,6 +62,11 @@ describe('createPlannerRuntime', () => {
     expect(mutation.state.graph.nodes).toHaveLength(3);
     expect(mutation.state.graph.edges).toHaveLength(2);
     expect(mutation.state.graph.nodes.find(node => node.id === rootNodeId)?.status).toBe('decomposed');
+    expect(
+      mutation.state.graph.nodes
+        .filter(node => node.parentNodeId === rootNodeId)
+        .every(node => node.scores.localEntropy === 0)
+    ).toBe(true);
     expect(mutation.state.frontier?.selections.length).toBeGreaterThan(0);
     expect(mutation.state.session.summary.lastFrontierUpdatedAt).toBe('2026-04-18T10:00:00.000Z');
   });
@@ -204,7 +209,7 @@ describe('createPlannerRuntime', () => {
     expect(reloaded?.frontier?.selections[0]?.validationPressure ?? 0).toBeGreaterThan(0);
   });
 
-  it('newly converges when validation is satisfiable and thresholds are met', async () => {
+  it('does not converge on a satisfiable single-node session without decomposition evidence', async () => {
     const store = createInMemoryStore();
     const ids = createIdGenerator();
     const runtime = createPlannerRuntime({
@@ -224,6 +229,60 @@ describe('createPlannerRuntime', () => {
       },
       'Reach BRHP convergence'
     );
+
+    const mutation = await runtime.recordValidation(context, {
+      clauses: [
+        {
+          kind: 'schema',
+          blocking: true,
+          description: 'Planner session must have an active scope.',
+          status: 'passed',
+        },
+      ],
+    });
+
+    expect(mutation.kind).toBe('validation-recorded');
+    if (mutation.kind !== 'validation-recorded') {
+      throw new Error('Expected validation mutation');
+    }
+
+    expect(mutation.state.session.status).toBe('validating');
+    expect(mutation.state.session.summary.converged).toBe(false);
+  });
+
+  it('converges after decomposition followed by satisfiable validation', async () => {
+    const store = createInMemoryStore();
+    const ids = createIdGenerator();
+    const runtime = createPlannerRuntime({
+      clock: { now: () => new Date('2026-04-18T10:12:00.000Z') },
+      ids,
+      store,
+    });
+    const context = { worktreePath: '/repo', opencodeSessionId: 'chat-5b' };
+
+    await runtime.create(
+      context,
+      {
+        directories: { global: '/global', project: '/repo/.opencode/brhp/instructions' },
+        instructions: [],
+        counts: { global: 0, project: 0, total: 0, skipped: 0 },
+        skippedFiles: [],
+      },
+      'Reach BRHP convergence after decomposition'
+    );
+
+    const initial = await runtime.getActive(context);
+
+    await runtime.decomposeNode(context, {
+      nodeId: initial?.session.rootNodeId ?? '',
+      children: [
+        {
+          title: 'Explicit refinement',
+          problemStatement: 'Provide decomposition evidence before convergence.',
+          category: 'dependent',
+        },
+      ],
+    });
 
     const mutation = await runtime.recordValidation(context, {
       clauses: [

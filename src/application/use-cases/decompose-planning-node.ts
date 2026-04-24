@@ -79,7 +79,8 @@ export function decomposePlanningNode(
     scores: {
       utility: 0.5,
       confidence: 0,
-      localEntropy: 1,
+      // v1 has no follow-up node scoring tool yet, so decomposed children start neutral.
+      localEntropy: 0,
       validationPressure: 0,
     },
     createdAt: timestamp,

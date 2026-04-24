@@ -74,12 +74,23 @@ export function recordActiveScopeValidation(
     nodes: input.state.graph.nodes,
     occurredAt: createdAt,
   });
+  const activeScopeNodeIds = new Set(
+    input.state.graph.nodes
+      .filter(node => node.scopeId === input.state.session.activeScopeId)
+      .map(node => node.id)
+  );
   const convergence = evaluateConvergence({
     globalEntropy: frontierUpdate.summary.globalEntropy,
     entropyDrift: frontierUpdate.summary.entropyDrift,
     frontierStability: frontierUpdate.summary.frontierStability,
     blockingFindings: verdict.blockingFindings,
     pendingBlockingClauses: verdict.pendingBlockingClauses,
+    hasStructuralRefinement: input.state.graph.edges.some(
+      edge =>
+        edge.kind === 'decomposes-to' &&
+        activeScopeNodeIds.has(edge.fromNodeId) &&
+        activeScopeNodeIds.has(edge.toNodeId)
+    ),
     ...DEFAULT_CONVERGENCE_THRESHOLDS,
   });
   const nextConverged = convergence.converged;

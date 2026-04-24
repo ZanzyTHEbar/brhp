@@ -19,6 +19,7 @@ export interface ConvergenceInput {
   readonly frontierStability: number;
   readonly blockingFindings: number;
   readonly pendingBlockingClauses: number;
+  readonly hasStructuralRefinement: boolean;
   readonly entropyThreshold: number;
   readonly driftThreshold: number;
   readonly stabilityThreshold: number;
@@ -206,6 +207,10 @@ export function evaluateConvergence(
 
   if (input.pendingBlockingClauses > 0) {
     reasons.push('blocking validation clauses are pending');
+  }
+
+  if (!input.hasStructuralRefinement) {
+    reasons.push('no structural refinement has been recorded');
   }
 
   return {

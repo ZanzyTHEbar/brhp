@@ -208,6 +208,7 @@ describe('brhp-formalism', () => {
         frontierStability: 0.95,
         blockingFindings: 0,
         pendingBlockingClauses: 0,
+        hasStructuralRefinement: true,
         entropyThreshold: 0.2,
         driftThreshold: 0.05,
         stabilityThreshold: 0.9,
@@ -221,6 +222,7 @@ describe('brhp-formalism', () => {
         frontierStability: 0.95,
         blockingFindings: 0,
         pendingBlockingClauses: 0,
+        hasStructuralRefinement: true,
         entropyThreshold: 0.2,
         driftThreshold: 0.05,
         stabilityThreshold: 0.9,
@@ -237,6 +239,7 @@ describe('brhp-formalism', () => {
         frontierStability: 0.95,
         blockingFindings: 0,
         pendingBlockingClauses: 0,
+        hasStructuralRefinement: true,
         entropyThreshold: 0.2,
         driftThreshold: 0.05,
         stabilityThreshold: 0.9,
@@ -244,6 +247,23 @@ describe('brhp-formalism', () => {
     ).toEqual({
       converged: false,
       reasons: ['entropy drift exceeds threshold'],
+    });
+
+    expect(
+      evaluateConvergence({
+        globalEntropy: 0.1,
+        entropyDrift: 0.01,
+        frontierStability: 0.95,
+        blockingFindings: 0,
+        pendingBlockingClauses: 0,
+        hasStructuralRefinement: false,
+        entropyThreshold: 0.2,
+        driftThreshold: 0.05,
+        stabilityThreshold: 0.9,
+      })
+    ).toEqual({
+      converged: false,
+      reasons: ['no structural refinement has been recorded'],
     });
   });
 });

@@ -57,8 +57,9 @@ These files wire adapters to use cases and map them onto the OpenCode server and
 
 For the planner runtime specifically:
 
-- `src/composition/create-planner-runtime.ts` creates one planner runtime per plugin instance/worktree
-- the server hook and TUI hook reuse that runtime instead of reopening the DB on every operation
+- `src/composition/create-planner-runtime.ts` creates planner runtimes on demand for a worktree
+- the server hook opens planner runtime access per operation and closes it after the operation completes
+- the TUI owns a longer-lived planner runtime through `src/composition/create-planner-runtime-owner.ts`
 - plugin lifecycle disposal closes the TUI runtime handle explicitly
 
 ## BRHP formal core
@@ -82,9 +83,9 @@ Current runtime behavior derived from that model:
 
 - validation persists deterministic verdicts for the active scope
 - frontier reselection is recomputed after decomposition and validation
-- convergence is derived from current frontier entropy, drift magnitude, stability, and validation findings
+- convergence is derived from current frontier entropy, drift magnitude, stability, validation findings, and explicit decomposition evidence
 - decomposition invalidates convergence and returns the session to `exploring`
-- loaded instruction content currently seeds planner invariants; explicit policy-document provenance remains reserved for a later batch
+- loaded instruction content currently seeds planner invariants; explicit policy-document provenance is formally deferred for BRHP v1
 
 ### Entry modules
 
@@ -106,7 +107,7 @@ Entrypoints are intentionally thin and use default exports only to match observe
 
 1. `config` registers the `brhp` command.
 2. `command.execute.before` parses `/brhp` into `status`, `plan`, or `resume`.
-3. The plugin uses the shared planner runtime plus the local libsql store to load or mutate the active session for the current OpenCode chat.
+3. The plugin opens planner runtime access for the operation and uses the local libsql store to load or mutate the active session for the current OpenCode chat.
 4. The plugin clears the output parts and writes a text response with planning state and instruction diagnostics.
 
 ## TUI flow

@@ -18,7 +18,13 @@ describe('recordActiveScopeValidation', () => {
       clock: { now: () => new Date('2026-04-19T10:05:00.000Z') },
       ids: createIdGenerator(100),
       state: {
-        session: seed.session,
+        session: {
+          ...seed.session,
+          summary: {
+            ...seed.session.summary,
+            globalEntropy: 0.1,
+          },
+        },
         graph: {
           scopes: seed.scopes,
           nodes: seed.nodes,
@@ -101,7 +107,7 @@ describe('recordActiveScopeValidation', () => {
     expect(patch.session.summary.entropyDrift).toBeLessThan(0);
   });
 
-  it('newly converges when validation is satisfiable and summary metrics clear the thresholds', () => {
+  it('stays validating for a satisfiable single-node session without decomposition evidence', () => {
     const seed = createPlanningSessionSeed({
       clock: { now: () => new Date('2026-04-19T10:00:00.000Z') },
       ids: createIdGenerator(),
@@ -133,8 +139,188 @@ describe('recordActiveScopeValidation', () => {
     });
 
     expect(patch.validation.satisfiable).toBe(true);
+    expect(patch.session.status).toBe('validating');
+    expect(patch.session.summary.converged).toBe(false);
+  });
+
+  it('newly converges after structural refinement and satisfiable validation', () => {
+    const seed = createPlanningSessionSeed({
+      clock: { now: () => new Date('2026-04-19T10:00:00.000Z') },
+      ids: createIdGenerator(),
+      worktreePath: '/repo',
+      opencodeSessionId: 'chat-1',
+      problemStatement: 'Formalize BRHP validation persistence.',
+    });
+
+    const patch = recordActiveScopeValidation({
+      clock: { now: () => new Date('2026-04-19T10:05:00.000Z') },
+      ids: createIdGenerator(100),
+      state: {
+        session: {
+          ...seed.session,
+          summary: {
+            ...seed.session.summary,
+            frontierStability: 1,
+          },
+        },
+        graph: {
+          scopes: seed.scopes,
+          nodes: [
+            {
+              ...seed.nodes[0]!,
+              status: 'decomposed',
+            },
+            {
+              id: 'node-2',
+              sessionId: seed.session.id,
+              scopeId: seed.session.activeScopeId,
+              parentNodeId: seed.session.rootNodeId,
+              title: 'Refined child node',
+              problemStatement: 'Demonstrate explicit decomposition evidence.',
+              category: 'dependent',
+              status: 'proposed',
+              depth: 1,
+              scores: {
+                utility: 1,
+                confidence: 0,
+                localEntropy: 0,
+                validationPressure: 0,
+              },
+              createdAt: seed.session.createdAt,
+              updatedAt: seed.session.updatedAt,
+            },
+          ],
+          edges: [
+            {
+              id: 'edge-1',
+              sessionId: seed.session.id,
+              fromNodeId: seed.session.rootNodeId,
+              toNodeId: 'node-2',
+              kind: 'decomposes-to',
+              createdAt: seed.session.createdAt,
+            },
+          ],
+        },
+        frontier: {
+          ...seed.frontier,
+          createdAt: '2026-04-19T10:04:00.000Z',
+          selections: [
+            {
+              nodeId: 'node-2',
+              scopeId: seed.session.activeScopeId,
+              utility: 1,
+              localEntropy: 0,
+              validationPressure: 0,
+              probability: 1,
+              rank: 1,
+              depthClamp: seed.frontier.depthClamp,
+            },
+          ],
+        },
+      },
+      clauses: [
+        {
+          kind: 'schema',
+          blocking: true,
+          description: 'The decomposed scope still exists.',
+          status: 'passed',
+        },
+      ],
+    });
+
+    expect(patch.validation.satisfiable).toBe(true);
     expect(patch.session.status).toBe('converged');
     expect(patch.session.summary.converged).toBe(true);
+  });
+
+  it('stays validating when only an inactive scope has structural refinement', () => {
+    const seed = createPlanningSessionSeed({
+      clock: { now: () => new Date('2026-04-19T10:00:00.000Z') },
+      ids: createIdGenerator(),
+      worktreePath: '/repo',
+      opencodeSessionId: 'chat-1',
+      problemStatement: 'Formalize BRHP validation persistence.',
+    });
+
+    const patch = recordActiveScopeValidation({
+      clock: { now: () => new Date('2026-04-19T10:05:00.000Z') },
+      ids: createIdGenerator(100),
+      state: {
+        session: {
+          ...seed.session,
+          summary: {
+            ...seed.session.summary,
+            frontierStability: 1,
+          },
+        },
+        graph: {
+          scopes: [...seed.scopes, { ...seed.scopes[0]!, id: 'scope-2', title: 'Inactive scope' }],
+          nodes: [
+            ...seed.nodes,
+            {
+              id: 'node-x',
+              sessionId: seed.session.id,
+              scopeId: 'scope-2',
+              title: 'Inactive parent',
+              problemStatement: 'This refinement belongs to another scope.',
+              category: 'dependent',
+              status: 'decomposed',
+              depth: 0,
+              scores: {
+                utility: 0.5,
+                confidence: 0,
+                localEntropy: 0,
+                validationPressure: 0,
+              },
+              createdAt: seed.session.createdAt,
+              updatedAt: seed.session.updatedAt,
+            },
+            {
+              id: 'node-y',
+              sessionId: seed.session.id,
+              scopeId: 'scope-2',
+              parentNodeId: 'node-x',
+              title: 'Inactive child',
+              problemStatement: 'This should not satisfy the active scope refinement gate.',
+              category: 'dependent',
+              status: 'proposed',
+              depth: 1,
+              scores: {
+                utility: 1,
+                confidence: 0,
+                localEntropy: 0,
+                validationPressure: 0,
+              },
+              createdAt: seed.session.createdAt,
+              updatedAt: seed.session.updatedAt,
+            },
+          ],
+          edges: [
+            {
+              id: 'edge-inactive',
+              sessionId: seed.session.id,
+              fromNodeId: 'node-x',
+              toNodeId: 'node-y',
+              kind: 'decomposes-to',
+              createdAt: seed.session.createdAt,
+            },
+          ],
+        },
+        frontier: seed.frontier,
+      },
+      clauses: [
+        {
+          kind: 'schema',
+          blocking: true,
+          description: 'The active scope still exists.',
+          status: 'passed',
+        },
+      ],
+    });
+
+    expect(patch.validation.satisfiable).toBe(true);
+    expect(patch.session.status).toBe('validating');
+    expect(patch.session.summary.converged).toBe(false);
   });
 
   it('stays validating when validation is satisfiable but entropy exceeds the threshold', () => {

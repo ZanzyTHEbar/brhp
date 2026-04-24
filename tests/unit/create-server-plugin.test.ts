@@ -305,6 +305,7 @@ describe('createServerPluginHooks', () => {
       expect(validateToolOutput).toContain('"kind": "validation-recorded"');
       expect(validateToolOutput).toContain('"pendingBlockingClauses": 1');
       expect(validateToolOutput).toContain('"validationPressure"');
+      expect(validateToolOutput).toContain('"status": "validating"');
 
       const validatedPlanOutput = await hooks.tool?.brhp_get_active_plan?.execute(
         {},

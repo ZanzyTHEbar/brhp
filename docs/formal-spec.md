@@ -66,7 +66,7 @@ The policy state is:
 ```
 
 - `I_t` is the active instruction set loaded from the configured global/project instruction directories.
-- `P_t` is the explicit policy document set. In the current committed runtime this set is reserved for future provenance work and is currently empty for runtime-created sessions.
+- `P_t` is the explicit policy document set. In BRHP v1 this set is formally deferred and remains empty for runtime-created sessions.
 - `Λ_t` is the invariant set that must remain true throughout planning. In the current committed runtime invariants are heuristically derived from loaded instruction content.
 
 ### Summary state
@@ -165,13 +165,13 @@ Blocking clauses must be explicitly passed for `SAT(Φ_Q)` to hold.
 
 ## Convergence
 
-Planning converges only when entropy, the magnitude of drift, frontier stability, and validation all clear their thresholds:
+Planning converges only when entropy, the magnitude of drift, frontier stability, validation, and explicit structural refinement all clear their thresholds:
 
 ```text
-Converged_t = (H_g ≤ ε_H) ∧ (|ΔH_g| ≤ ε_Δ) ∧ (Ξ_t ≥ ε_Ξ) ∧ (blocking findings = 0)
+Converged_t = (H_g ≤ ε_H) ∧ (|ΔH_g| ≤ ε_Δ) ∧ (Ξ_t ≥ ε_Ξ) ∧ (blocking findings = 0) ∧ (pending blocking clauses = 0) ∧ (∃ e ∈ E_t(active scope) : e.kind = decomposes-to)
 ```
 
-Pending blocking clauses also prevent convergence.
+The structural-refinement predicate is evaluated against the active-scope subgraph, not arbitrary decomposition edges elsewhere in the session.
 
 ## Source-of-truth mapping
 

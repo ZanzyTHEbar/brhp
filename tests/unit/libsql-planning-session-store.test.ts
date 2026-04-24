@@ -1006,12 +1006,35 @@ describe('LibsqlPlanningSessionStore', () => {
         ],
       });
 
+      await runtime.decomposeNode(context, {
+        nodeId: (await store.getActiveSession(context))?.session.rootNodeId ?? '',
+        children: [
+          {
+            title: 'Provide decomposition evidence',
+            problemStatement: 'Convergence now requires a decomposition edge.',
+            category: 'dependent',
+          },
+        ],
+      });
+
+      await runtime.recordValidation(context, {
+        clauses: [
+          {
+            kind: 'schema',
+            blocking: true,
+            description: 'Planner session must retain an active scope.',
+            status: 'passed',
+          },
+        ],
+      });
+
       const converged = await store.getActiveSession(context);
       expect(converged?.session.status).toBe('converged');
       expect(converged?.session.summary.converged).toBe(true);
+      const activeFrontierNodeId = converged?.frontier?.selections[0]?.nodeId ?? '';
 
       await runtime.decomposeNode(context, {
-        nodeId: converged?.session.rootNodeId ?? '',
+        nodeId: activeFrontierNodeId,
         children: [
           {
             title: 'Break convergence',
