@@ -1,7 +1,10 @@
 /** @jsxImportSource @opentui/solid */
 import type { TuiPlugin } from '@opencode-ai/plugin/tui';
 
-import { buildSidebarModel } from '../application/use-cases/build-sidebar-model.js';
+import {
+  loadSidebarModel,
+  type SidebarLoadResult,
+} from '../application/use-cases/load-sidebar-model.js';
 import { createPlannerRuntimeForWorktree } from './create-planner-runtime.js';
 import { createPlannerRuntimeOwner } from './create-planner-runtime-owner.js';
 import { createInstructionInventoryLoader } from './create-instruction-inventory-loader.js';
@@ -26,14 +29,15 @@ export const createTuiPlugin = (options: CreateTuiPluginOptions = {}): TuiPlugin
         createHandle: () => createPlannerRuntimeForWorktree(projectDirectory),
       });
 
-    const loadModel = async (sessionId: string) => {
-      const inventory = await createInstructionInventoryLoader(projectDirectory)();
-      const planningState = await (await owner.getRuntime()).getActive({
-        worktreePath: projectDirectory,
-        opencodeSessionId: sessionId,
+    const loadModel = async (sessionId: string): Promise<SidebarLoadResult> => {
+      return loadSidebarModel({
+        loadInventory: () => createInstructionInventoryLoader(projectDirectory)(),
+        loadPlanningState: async () =>
+          (await owner.getRuntime()).getActive({
+            worktreePath: projectDirectory,
+            opencodeSessionId: sessionId,
+          }),
       });
-
-      return buildSidebarModel(inventory, planningState);
     };
 
     let unregisterSlots: unknown;

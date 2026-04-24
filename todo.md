@@ -4,18 +4,17 @@
 
 This file is a curated engineering backlog, not a release promise. Deferred roadmap items below are intentionally out of current scope.
 
-1. Batch 10: formalize BRHP v1 convergence and provenance boundaries
-   - require explicit decomposition before a session may converge
-   - formally defer explicit policy-document provenance in BRHP v1
-   - align docs with the shipped server operation-scoped runtime model
-
-2. Next candidate batch: improve operator read models
-   - decide whether planner event history should become part of the hydrated read model
-   - improve TUI error wording so runtime/database failures are distinguishable from instruction-load failures
-
-3. Next candidate batch: richer planning completion semantics
+1. Next candidate batch: richer planning completion semantics
    - decide whether convergence should later require leaf completion, coverage closure, or both
    - keep current v1 rule minimal and explicit until that decision is made
+
+2. Next candidate batch: event history depth and operator drill-down
+   - decide whether planner event history should grow beyond the current bounded recent-activity read model
+   - decide whether `/brhp` or the TUI needs a deeper operator-facing history surface
+
+3. Next candidate batch: richer runtime diagnostics beyond the sidebar
+   - decide whether `/brhp status` should mirror the new planner-runtime vs instruction-load distinction
+   - decide whether runtime causes should be preserved internally for later operator inspection
 
 ## Landed foundation
 
@@ -32,6 +31,8 @@ This file is a curated engineering backlog, not a release promise. Deferred road
 - runtime convergence derived from current planner state plus explicit decomposition evidence
 - server runtime access hardened with per-operation lifecycle management
 - TUI runtime ownership hardened with explicit disposal and failure-path cleanup
+- recent planner activity surfaced in `/brhp`, active-plan JSON, and the sidebar
+- sidebar load diagnostics now distinguish BRHP instruction-load failures from planner-runtime failures
 
 ## Deferred advanced roadmap
 

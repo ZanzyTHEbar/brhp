@@ -2,6 +2,10 @@
 import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js';
 import type { TuiPluginApi, TuiTheme } from '@opencode-ai/plugin/tui';
 
+import type {
+  SidebarLoadFailure,
+  SidebarLoadResult,
+} from '../../application/use-cases/load-sidebar-model.js';
 import type { SidebarModel } from '../../domain/sidebar/sidebar-model.js';
 import { subscribeToSidebarRefresh } from '../state/sidebar-refresh.js';
 
@@ -9,7 +13,7 @@ interface SidebarContentProps {
   readonly api: TuiPluginApi;
   readonly theme: TuiTheme;
   readonly sessionId: string;
-  readonly loadModel: (sessionId: string) => Promise<SidebarModel>;
+  readonly loadModel: (sessionId: string) => Promise<SidebarLoadResult>;
 }
 
 type LoadState = 'loading' | 'ready' | 'error';
@@ -17,15 +21,30 @@ type LoadState = 'loading' | 'ready' | 'error';
 export function SidebarContent(props: SidebarContentProps) {
   const [state, setState] = createSignal<LoadState>('loading');
   const [model, setModel] = createSignal<SidebarModel | null>(null);
+  const [failure, setFailure] = createSignal<SidebarLoadFailure | null>(null);
 
   const load = async (): Promise<void> => {
     setState('loading');
 
     try {
-      setModel(await props.loadModel(props.sessionId));
-      setState('ready');
+      const result = await props.loadModel(props.sessionId);
+
+      if (result.ok) {
+        setModel(result.model);
+        setFailure(null);
+        setState('ready');
+        return;
+      }
+
+      setModel(null);
+      setFailure(result.failure);
+      setState('error');
     } catch {
       setModel(null);
+      setFailure({
+        kind: 'unknown',
+        message: 'Unable to load BRHP sidebar state',
+      });
       setState('error');
     }
   };
@@ -56,7 +75,7 @@ export function SidebarContent(props: SidebarContentProps) {
       </Show>
 
       <Show when={state() === 'error'}>
-        <text fg={colors().error}>Unable to load instructions</text>
+        <text fg={colors().error}>{failure()?.message ?? 'Unable to load BRHP sidebar state'}</text>
       </Show>
 
       <Show when={state() === 'ready' && model()}>
