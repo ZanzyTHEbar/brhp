@@ -9,7 +9,7 @@ interface SidebarContentProps {
   readonly api: TuiPluginApi;
   readonly theme: TuiTheme;
   readonly sessionId: string;
-  readonly loadModel: (projectDirectory: string, sessionId: string) => Promise<SidebarModel>;
+  readonly loadModel: (sessionId: string) => Promise<SidebarModel>;
 }
 
 type LoadState = 'loading' | 'ready' | 'error';
@@ -22,12 +22,7 @@ export function SidebarContent(props: SidebarContentProps) {
     setState('loading');
 
     try {
-      setModel(
-        await props.loadModel(
-          props.api.state.path.worktree || props.api.state.path.directory,
-          props.sessionId
-        )
-      );
+      setModel(await props.loadModel(props.sessionId));
       setState('ready');
     } catch {
       setModel(null);
