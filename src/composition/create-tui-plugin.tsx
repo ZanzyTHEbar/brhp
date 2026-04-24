@@ -8,6 +8,7 @@ import { createInstructionInventoryLoader } from './create-instruction-inventory
 import { emitSidebarRefresh } from '../tui/state/sidebar-refresh.js';
 import { SidebarContent } from '../tui/components/sidebar-content.js';
 import type { PlannerRuntimeOwner } from './create-planner-runtime-owner.js';
+import { resolveRuntimeProjectPath } from './resolve-project-worktree-path.js';
 
 export interface CreateTuiPluginOptions {
   readonly createOwner?: (worktreePath: string) => PlannerRuntimeOwner;
@@ -15,14 +16,17 @@ export interface CreateTuiPluginOptions {
 
 export const createTuiPlugin = (options: CreateTuiPluginOptions = {}): TuiPlugin => {
   return async api => {
-    const projectDirectory = api.state.path.worktree || api.state.path.directory;
+    const projectDirectory = resolveRuntimeProjectPath(
+      api.state.path.worktree,
+      api.state.path.directory
+    );
     const owner =
       options.createOwner?.(projectDirectory) ??
       createPlannerRuntimeOwner({
         createHandle: () => createPlannerRuntimeForWorktree(projectDirectory),
       });
 
-    const loadModel = async (projectDirectory: string, sessionId: string) => {
+    const loadModel = async (sessionId: string) => {
       const inventory = await createInstructionInventoryLoader(projectDirectory)();
       const planningState = await (await owner.getRuntime()).getActive({
         worktreePath: projectDirectory,

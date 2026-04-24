@@ -20,7 +20,6 @@ export async function openPlanningDatabase(
   input: OpenPlanningDatabaseInput
 ): Promise<PlanningDatabaseHandle> {
   const databasePath = resolvePlanningDatabasePath(input.worktreePath);
-
   await mkdir(path.dirname(databasePath), { recursive: true });
 
   const client = createClient({

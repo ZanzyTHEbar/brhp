@@ -171,4 +171,51 @@ describe('createTuiPlugin', () => {
     );
     expect(events).toEqual(['registerSlots', 'unregisterSlots', 'disposeRuntime']);
   });
+
+  it('resolves a root-like TUI worktree to the concrete directory before creating the owner', async () => {
+    let observedPath = '';
+    const plugin = createTuiPlugin({
+      createOwner: worktreePath => {
+        observedPath = worktreePath;
+        return {
+          async getRuntime() {
+            return {
+              async getActive() {
+                return null;
+              },
+            } as never;
+          },
+          async dispose() {},
+        };
+      },
+    });
+    const api = {
+      state: {
+        path: {
+          worktree: '/',
+          directory: '/tmp/brhp-integration-project',
+        },
+      },
+      slots: {
+        register() {
+          return () => {};
+        },
+      },
+      command: {
+        register() {
+          return () => {};
+        },
+      },
+      lifecycle: {
+        onDispose() {},
+      },
+      ui: {
+        toast() {},
+      },
+    } as never;
+
+    await plugin(api, undefined, { id: 'brhp' } as never);
+
+    expect(observedPath).toBe('/tmp/brhp-integration-project');
+  });
 });

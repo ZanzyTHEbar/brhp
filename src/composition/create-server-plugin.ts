@@ -9,6 +9,10 @@ import { withPlannerRuntimeForWorktree } from './create-planner-runtime.js';
 import { createPlannerTools } from './create-planner-tools.js';
 import { createInstructionInventoryLoader } from './create-instruction-inventory-loader.js';
 import {
+  resolveServerProjectWorktreePath,
+  resolveServerProjectWorktreePathWithoutSession,
+} from './resolve-project-worktree-path.js';
+import {
   BRHP_COMMAND_DESCRIPTION,
   BRHP_COMMAND_NAME,
 } from '../domain/slash-command/brhp-command.js';
@@ -35,12 +39,28 @@ export async function createServerPluginHooksWithRuntimeAccess(
   input: PluginInput,
   runtimeAccess: ServerPlannerRuntimeAccess
 ): Promise<Hooks> {
-  const projectDirectory = input.worktree || input.directory;
-  const loadInventory = createInstructionInventoryLoader(projectDirectory);
+  const resolveProjectDirectory = async (
+    sessionID: string,
+    runtimeCandidates?: {
+      readonly worktree?: string | null;
+      readonly directory?: string | null;
+    }
+  ) => {
+    return resolveServerProjectWorktreePath(
+      input,
+      sessionID,
+      runtimeCandidates
+    );
+  };
 
   return {
-    tool: createPlannerTools((sessionID, worktreePath, execute) =>
-      runtimeAccess.withRuntime(sessionID, worktreePath, execute)
+    tool: createPlannerTools(
+      (sessionID, worktreePath, execute) => runtimeAccess.withRuntime(sessionID, worktreePath, execute),
+      (sessionID, context) =>
+        resolveProjectDirectory(sessionID, {
+          worktree: context.worktree,
+          directory: context.directory,
+        })
     ),
     config: async opencodeConfig => {
       opencodeConfig.command ??= {};
@@ -54,7 +74,8 @@ export async function createServerPluginHooksWithRuntimeAccess(
         return;
       }
 
-      const inventory = await loadInventory();
+      const projectDirectory = await resolveProjectDirectory(commandInput.sessionID);
+      const inventory = await createInstructionInventoryLoader(projectDirectory)();
       const parsed = parseBrhpCommand(commandInput.arguments);
       const context = {
         worktreePath: projectDirectory,
@@ -106,8 +127,11 @@ export async function createServerPluginHooksWithRuntimeAccess(
       } as (typeof output.parts)[number]);
     },
     'experimental.chat.system.transform': async (transformInput, output) => {
-      const inventory = await loadInventory();
       const sessionID = transformInput.sessionID;
+      const projectDirectory = sessionID
+        ? await resolveProjectDirectory(sessionID)
+        : await resolveServerProjectWorktreePathWithoutSession(input);
+      const inventory = await createInstructionInventoryLoader(projectDirectory)();
       const planningState = sessionID
         ? await runtimeAccess.withRuntime(sessionID, projectDirectory, runtime =>
             runtime.getActive({

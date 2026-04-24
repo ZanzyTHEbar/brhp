@@ -10,7 +10,8 @@ export function createPlannerTools(
     sessionID: string,
     worktreePath: string,
     execute: (runtime: PlannerRuntime) => Promise<Result>
-  ) => Promise<Result>
+  ) => Promise<Result>,
+  resolveProjectPath: (sessionID: string, context: { directory: string; worktree: string }) => Promise<string>
 ): PlannerToolMap {
   return {
     [BRHP_TOOL_IDS.getActivePlan]: tool({
@@ -18,6 +19,7 @@ export function createPlannerTools(
         'Read the authoritative active BRHP planning session for the current OpenCode chat before making planner mutations.',
       args: {},
       async execute(_args, context) {
+        const projectPath = await resolveProjectPath(context.sessionID, context);
         context.metadata({
           title: 'Read active BRHP plan',
           metadata: {
@@ -27,10 +29,10 @@ export function createPlannerTools(
 
         const state = await withRuntime(
           context.sessionID,
-          context.worktree || context.directory,
+          projectPath,
           runtime =>
             runtime.getActive({
-              worktreePath: context.worktree || context.directory,
+              worktreePath: projectPath,
               opencodeSessionId: context.sessionID,
             })
         );
@@ -67,6 +69,7 @@ export function createPlannerTools(
           .min(1),
       },
       async execute(args, context) {
+        const projectPath = await resolveProjectPath(context.sessionID, context);
         context.metadata({
           title: `Decompose BRHP node ${args.nodeId}`,
           metadata: {
@@ -78,11 +81,11 @@ export function createPlannerTools(
 
         const mutation = await withRuntime(
           context.sessionID,
-          context.worktree || context.directory,
+          projectPath,
           runtime =>
             runtime.decomposeNode(
               {
-                worktreePath: context.worktree || context.directory,
+                worktreePath: projectPath,
                 opencodeSessionId: context.sessionID,
               },
               {
@@ -118,6 +121,7 @@ export function createPlannerTools(
           .min(1),
       },
       async execute(args, context) {
+        const projectPath = await resolveProjectPath(context.sessionID, context);
         context.metadata({
           title: 'Validate BRHP active scope',
           metadata: {
@@ -128,11 +132,11 @@ export function createPlannerTools(
 
         const mutation = await withRuntime(
           context.sessionID,
-          context.worktree || context.directory,
+          projectPath,
           runtime =>
             runtime.recordValidation(
               {
-                worktreePath: context.worktree || context.directory,
+                worktreePath: projectPath,
                 opencodeSessionId: context.sessionID,
               },
               {

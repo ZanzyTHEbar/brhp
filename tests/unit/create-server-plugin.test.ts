@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import type { PluginInput } from '@opencode-ai/plugin';
 
 import {
   createServerPluginHooks,
@@ -511,12 +512,228 @@ describe('createServerPluginHooks', () => {
 
     expect(events).toEqual(['open', 'close']);
   });
+
+  it('resolves the real project worktree from live session metadata when plugin input is root-like', async () => {
+    const observedWorktreePaths: string[] = [];
+    const hooks = await createServerPluginHooksWithRuntimeAccess(
+      createPluginInput('/', {
+        project: { id: 'project-root', worktree: '/', time: { created: 0 } } as never,
+        client: {
+          session: {
+            async get(options: {
+              path: { id: string };
+              responseStyle: 'data';
+              throwOnError: true;
+            }) {
+              expect(options).toMatchObject({
+                path: { id: 'chat-rootlike' },
+                responseStyle: 'data',
+                throwOnError: true,
+              });
+              return { directory: '/tmp/brhp-integration-project' } as never;
+            },
+          },
+          project: {
+            async current(options: {
+              query: { directory: string };
+              responseStyle: 'data';
+              throwOnError: true;
+            }) {
+              expect(options).toMatchObject({
+                query: { directory: '/tmp/brhp-integration-project' },
+                responseStyle: 'data',
+                throwOnError: true,
+              });
+              return { worktree: '/tmp/brhp-integration-project' } as never;
+            },
+          },
+        } as never,
+      }),
+      {
+        async withRuntime(_sessionID, worktreePath, execute) {
+          observedWorktreePaths.push(worktreePath);
+          return execute({
+            async getActive() {
+              return null;
+            },
+            async create() {
+              throw new Error('not used');
+            },
+            async resume() {
+              throw new Error('not used');
+            },
+            async decomposeNode() {
+              throw new Error('not used');
+            },
+            async recordValidation() {
+              throw new Error('not used');
+            },
+          } as never);
+        },
+      }
+    );
+
+    await hooks['command.execute.before']?.(
+      {
+        command: 'brhp',
+        sessionID: 'chat-rootlike',
+        arguments: '',
+      },
+      { parts: [] } as never
+    );
+
+    expect(observedWorktreePaths).toEqual([
+      '/tmp/brhp-integration-project',
+    ]);
+  });
+
+  it('resolves the real project worktree for tool execution when runtime context is root-like', async () => {
+    const observedWorktreePaths: string[] = [];
+    const hooks = await createServerPluginHooksWithRuntimeAccess(
+      createPluginInput('/', {
+        project: { id: 'project-root', worktree: '/', time: { created: 0 } } as never,
+        client: {
+          session: {
+            async get() {
+              return { directory: '/tmp/brhp-integration-project' } as never;
+            },
+          },
+          project: {
+            async current() {
+              return { worktree: '/tmp/brhp-integration-project' } as never;
+            },
+          },
+        } as never,
+      }),
+      {
+        async withRuntime(_sessionID, worktreePath, execute) {
+          observedWorktreePaths.push(worktreePath);
+          return execute({
+            async getActive() {
+              return null;
+            },
+            async create() {
+              throw new Error('not used');
+            },
+            async resume() {
+              throw new Error('not used');
+            },
+            async decomposeNode() {
+              throw new Error('not used');
+            },
+            async recordValidation() {
+              throw new Error('not used');
+            },
+          } as never);
+        },
+      }
+    );
+
+    const output = await hooks.tool?.brhp_get_active_plan?.execute(
+      {},
+      {
+        sessionID: 'chat-rootlike-tool',
+        messageID: 'message-1',
+        agent: 'assistant',
+        directory: '/tmp/brhp-integration-project',
+        worktree: '/',
+        abort: new AbortController().signal,
+        metadata() {},
+        ask: async () => {},
+      } as never
+    );
+
+    expect(output).toContain('No active BRHP planning session exists');
+    expect(observedWorktreePaths).toEqual(['/tmp/brhp-integration-project']);
+  });
+
+  it('resolves the real project worktree for system prompt injection when plugin input is root-like', async () => {
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'brhp-server-rootlike-system-'));
+    const configRoot = path.join(tempRoot, 'config');
+    const globalDirectory = path.join(configRoot, 'brhp', 'instructions');
+
+    await mkdir(globalDirectory, { recursive: true });
+    await writeFile(
+      path.join(globalDirectory, 'baseline.md'),
+      ['---', 'title: Baseline', '---', '', 'Use explicit steps.'].join('\n')
+    );
+
+    const originalConfigDirectory = process.env.OPENCODE_CONFIG_DIR;
+    process.env.OPENCODE_CONFIG_DIR = configRoot;
+
+    try {
+      const hooks = await createServerPluginHooksWithRuntimeAccess(
+        createPluginInput('/', {
+          project: { id: 'project-root', worktree: '/', time: { created: 0 } } as never,
+          client: {
+            path: {
+              async get() {
+                return { directory: tempRoot, worktree: tempRoot } as never;
+              },
+            },
+          } as never,
+        }),
+        {
+          async withRuntime(_sessionID, worktreePath, execute) {
+            expect(worktreePath).toBe(tempRoot);
+            return execute({
+              async getActive() {
+                return null;
+              },
+              async create() {
+                throw new Error('not used');
+              },
+              async resume() {
+                throw new Error('not used');
+              },
+              async decomposeNode() {
+                throw new Error('not used');
+              },
+              async recordValidation() {
+                throw new Error('not used');
+              },
+            } as never);
+          },
+        }
+      );
+
+      const output = { system: [] as string[] };
+
+      await hooks['experimental.chat.system.transform']?.(
+        {
+          sessionID: 'chat-rootlike-system',
+          model: {} as never,
+        },
+        output as never
+      );
+
+      expect(output.system.join('\n')).toContain('Use explicit steps.');
+    } finally {
+      if (originalConfigDirectory === undefined) {
+        delete process.env.OPENCODE_CONFIG_DIR;
+      } else {
+        process.env.OPENCODE_CONFIG_DIR = originalConfigDirectory;
+      }
+
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
 });
 
-function createPluginInput(projectDirectory: string) {
+function createPluginInput(
+  projectDirectory: string,
+  overrides: Partial<ReturnType<typeof createPluginInputBase>> = {}
+) {
+  return {
+    ...createPluginInputBase(projectDirectory),
+    ...overrides,
+  };
+}
+
+function createPluginInputBase(projectDirectory: string): PluginInput {
   return {
     client: {} as never,
-    project: {} as never,
+    project: { id: 'project-1', worktree: projectDirectory, time: { created: 0 } } as never,
     directory: projectDirectory,
     worktree: projectDirectory,
     serverUrl: new URL('https://example.com'),
