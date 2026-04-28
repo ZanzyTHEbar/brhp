@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/package.json",
   "name": "brhp",
   "version": "0.1.0",
-  "description": "Hexagonal OpenCode plugin scaffold for BRHP",
+  "description": "Structured, persistent planning for OpenCode",
   "homepage": "https://github.com/ZanzyTHEbar/brhp#readme",
   "bugs": {
     "url": "https://github.com/ZanzyTHEbar/brhp/issues"

@@ -1,60 +1,89 @@
-# brhp
+# BRHP
 
-`brhp` is a single-package, TypeScript OpenCode plugin for OpenCode `v1.4.0+`.
+BRHP is an OpenCode plugin for structured, persistent planning.
 
-It ships two real plugin entrypoints:
+Instead of treating planning as a few disposable notes in a chat, BRHP gives planning its own state. You can start from a problem statement, build and revisit a planning session over time, and keep that session grounded in the instructions and constraints that matter for the current project.
 
-- **server entry** at the package root
-- **TUI entry** at `brhp/tui`
+BRHP is short for Boltzmann Recursive Hierarchical Planning. At a high level, it models planning as a graph of scopes, nodes, and validation signals rather than a flat checklist, so the system can keep track of what is still unresolved and whether a plan has actually converged.
 
-The repository is being built in sequenced batches. The current baseline is buildable, testable, and organized as a documented hexagonal architecture with a formal BRHP planning core.
+## What BRHP is for
 
-## Features
+BRHP is built for work that is too large, too uncertain, or too constrained to handle well with "just start coding."
 
-- pnpm-managed ESM package
-- thin OpenCode entrypoints with default exports only
-- `/brhp` slash command scaffold wired through `config` and `command.execute.before`
-- instruction ingestion from:
-  - global: `~/.config/opencode/brhp/instructions`
-  - project: `.opencode/brhp/instructions`
-- `.md` and `.mdc` instruction support
-- optional YAML frontmatter (`title`, `description`, `order`, `enabled`)
-- local planner persistence in `.opencode/brhp/brhp.db`
-- system prompt injection through `experimental.chat.system.transform`
-- TUI sidebar scaffold on `sidebar_content`
-- formal BRHP planning domain model with explicit frontier, entropy, validation, and convergence math
-- instruction-derived invariants seeded into planning sessions
-- v1 convergence requires explicit decomposition and passed blocking `coverage` validation for the active scope before a session may settle as `converged`
-- package sanity check script
-- unit tests for instruction loading, prompt building, slash command behavior, and BRHP formalism primitives
+It is meant to help you:
 
-## Verification nuance
+- turn a vague problem into an explicit planning session
+- keep track of the active frontier of unresolved work
+- validate whether the current plan is coherent enough to proceed
+- resume planning later without losing the thread
+- keep project-specific instructions in the loop while planning
 
-`pnpm verify:package` verifies the built server entry is importable and exposes the expected plugin shape.
+## Why this project exists
 
-The built TUI bundle is only checked for presence. A direct `node`/`bun` smoke import is intentionally not used as a package verification gate because OpenCode TUI plugins rely on the real OpenCode runtime resolver behavior. In plain Node-style imports, `@opentui/solid/jsx-runtime` currently resolves in a way that is not representative of OpenCode's plugin loader.
+Most AI-assisted development workflows are very good at moving fast. They are much less reliable at holding a careful plan in memory across multiple turns, especially when the work has dependencies, constraints, or policy-like requirements.
 
-## Instruction precedence
+BRHP exists to make planning a first-class activity inside OpenCode. The goal is not only to generate a plan once, but to maintain an explicit planning state that can be inspected, constrained, resumed, and handed off with more confidence.
 
-Instructions are loaded in this order:
+## What it does today
 
-1. global instructions
-2. project instructions
+BRHP currently provides:
 
-Project instructions are appended after global instructions and are therefore the more specific layer when guidance overlaps.
+- a `/brhp` slash command for inspecting, creating, and resuming planning sessions
+- a TUI sidebar for the current planning state
+- instruction loading from both user-level and project-level directories
+- local persistence so planning sessions survive across turns and restarts
 
-## Directory layout
+BRHP reads instructions from:
+
+- `~/.config/opencode/brhp/instructions`
+- `.opencode/brhp/instructions`
+
+Planning sessions are stored locally at:
+
+- `.opencode/brhp/brhp.db`
+
+## Getting started
+
+Requirements:
+
+- OpenCode `v1.4.0+`
+- Node.js `20+`
+
+Enable the plugin in OpenCode:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["brhp"]
+}
+```
+
+Enable the TUI plugin:
+
+```json
+{
+  "plugin": ["brhp"]
+}
+```
+
+Common commands:
+
+- `/brhp` or `/brhp status` to inspect the active planning session
+- `/brhp plan <problem statement>` to start a new planning session
+- `/brhp resume <session id>` to resume an existing session
+
+Example:
 
 ```text
-src/
-  adapters/
-  application/
-  composition/
-  domain/
-  tui/
-tests/unit/
-docs/architecture.md
+/brhp plan Design a safe rollout strategy for migrating our job system
 ```
+
+## Documentation
+
+The README is meant to explain the project at a high level. If you want the internal design and formal model, start here:
+
+- [Architecture](./docs/architecture.md)
+- [Formal specification](./docs/formal-spec.md)
 
 ## Development
 
@@ -64,7 +93,7 @@ Install dependencies:
 pnpm install
 ```
 
-Validate the scaffold:
+Validate the project:
 
 ```bash
 pnpm typecheck
@@ -73,52 +102,16 @@ pnpm build
 pnpm verify:package
 ```
 
-Validate the SQLite/sqlc planner contract:
+If you are working on the local planner schema:
 
 ```bash
 pnpm db:compile
 pnpm db:vet
 ```
 
-## BRHP commands
+## Project status
 
-`/brhp` supports a small runtime surface:
-
-- `/brhp`
-- `/brhp status`
-- `/brhp plan <problem statement>`
-- `/brhp resume <session-id>`
-
-Planning sessions are persisted to a local libsql database at `.opencode/brhp/brhp.db` inside the worktree.
-
-BRHP v1 intentionally derives planner invariants from loaded instruction content. Explicit policy-document provenance remains formally deferred.
-
-## Plugin installation
-
-Example OpenCode config:
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "plugin": ["brhp"]
-}
-```
-
-Example TUI config:
-
-```json
-{
-  "plugin": ["brhp"]
-}
-```
-
-## Architecture
-
-See [docs/architecture.md](./docs/architecture.md).
-
-For the mathematical BRHP model, see [docs/formal-spec.md](./docs/formal-spec.md).
-
-For the curated active backlog and deferred advanced roadmap, see [todo.md](./todo.md).
+BRHP is an early public release. The core planning model, OpenCode integration, and local persistence are in place, but the public surface is still intentionally small while the planning kernel hardens.
 
 ## License
 
