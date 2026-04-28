@@ -4,7 +4,7 @@
 
 BRHP is a planning-mode harness that recursively refines a problem into a constrained graph, maintains explicit frontier state, minimizes entropy over time, and validates branches before leaf handoff.
 
-This document formalizes the v1 production model that the plugin will implement.
+This document formalizes the v1 production model.
 
 ## State model
 
@@ -195,5 +195,3 @@ These formulas map directly to code in:
 - `src/application/use-cases/recompute-active-frontier.ts`
 - `src/application/use-cases/record-active-scope-validation.ts`
 - `src/application/use-cases/decompose-planning-node.ts`
-
-The next implementation batches will map the same formal objects onto the local `libsql` relational kernel and OpenCode server/TUI integrations.
