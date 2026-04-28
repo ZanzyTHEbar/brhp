@@ -4,17 +4,17 @@
 
 This file is a curated engineering backlog, not a release promise. Deferred roadmap items below are intentionally out of current scope.
 
-1. Next candidate batch: richer planning completion semantics
-   - decide whether convergence should later require leaf completion, coverage closure, or both
-   - keep current v1 rule minimal and explicit until that decision is made
-
-2. Next candidate batch: event history depth and operator drill-down
+1. Next candidate batch: event history depth and operator drill-down
    - decide whether planner event history should grow beyond the current bounded recent-activity read model
    - decide whether `/brhp` or the TUI needs a deeper operator-facing history surface
 
-3. Next candidate batch: richer runtime diagnostics beyond the sidebar
+2. Next candidate batch: richer runtime diagnostics beyond the sidebar
    - decide whether `/brhp status` should mirror the new planner-runtime vs instruction-load distinction
    - decide whether runtime causes should be preserved internally for later operator inspection
+
+3. Next candidate batch: operator drill-down after history depth is decided
+   - decide whether `/brhp` or the TUI needs per-session drill-down beyond the current bounded summaries
+   - keep richer operator surfaces behind the existing narrow tool surface
 
 ## Landed foundation
 
@@ -28,7 +28,7 @@ This file is a curated engineering backlog, not a release promise. Deferred road
   - `brhp_validate_active_scope`
 - deterministic validation snapshot persistence
 - frontier recomputation and validation-aware selection pressure
-- runtime convergence derived from current planner state plus explicit decomposition evidence
+- runtime convergence derived from current planner state plus explicit decomposition evidence and passed blocking coverage closure
 - server runtime access hardened with per-operation lifecycle management
 - TUI runtime ownership hardened with explicit disposal and failure-path cleanup
 - recent planner activity surfaced in `/brhp`, active-plan JSON, and the sidebar

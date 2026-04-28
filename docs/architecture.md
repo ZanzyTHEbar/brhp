@@ -83,7 +83,7 @@ Current runtime behavior derived from that model:
 
 - validation persists deterministic verdicts for the active scope
 - frontier reselection is recomputed after decomposition and validation
-- convergence is derived from current frontier entropy, drift magnitude, stability, validation findings, and explicit decomposition evidence
+- convergence is derived from current frontier entropy, drift magnitude, stability, explicit decomposition evidence, and blocking coverage closure in the active-scope validation snapshot
 - decomposition invalidates convergence and returns the session to `exploring`
 - loaded instruction content currently seeds planner invariants; explicit policy-document provenance is formally deferred for BRHP v1
 

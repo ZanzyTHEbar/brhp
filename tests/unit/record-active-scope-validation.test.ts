@@ -225,12 +225,108 @@ describe('recordActiveScopeValidation', () => {
           description: 'The decomposed scope still exists.',
           status: 'passed',
         },
+        {
+          kind: 'coverage',
+          blocking: true,
+          description: 'The active scope has complete decomposition coverage.',
+          status: 'passed',
+        },
       ],
     });
 
     expect(patch.validation.satisfiable).toBe(true);
     expect(patch.session.status).toBe('converged');
     expect(patch.session.summary.converged).toBe(true);
+  });
+
+  it('stays validating after structural refinement when coverage closure is missing', () => {
+    const seed = createPlanningSessionSeed({
+      clock: { now: () => new Date('2026-04-19T10:00:00.000Z') },
+      ids: createIdGenerator(),
+      worktreePath: '/repo',
+      opencodeSessionId: 'chat-1',
+      problemStatement: 'Formalize BRHP validation persistence.',
+    });
+
+    const patch = recordActiveScopeValidation({
+      clock: { now: () => new Date('2026-04-19T10:05:00.000Z') },
+      ids: createIdGenerator(100),
+      state: {
+        session: {
+          ...seed.session,
+          summary: {
+            ...seed.session.summary,
+            frontierStability: 1,
+          },
+        },
+        graph: {
+          scopes: seed.scopes,
+          nodes: [
+            {
+              ...seed.nodes[0]!,
+              status: 'decomposed',
+            },
+            {
+              id: 'node-2',
+              sessionId: seed.session.id,
+              scopeId: seed.session.activeScopeId,
+              parentNodeId: seed.session.rootNodeId,
+              title: 'Refined child node',
+              problemStatement: 'Demonstrate explicit decomposition evidence.',
+              category: 'dependent',
+              status: 'proposed',
+              depth: 1,
+              scores: {
+                utility: 1,
+                confidence: 0,
+                localEntropy: 0,
+                validationPressure: 0,
+              },
+              createdAt: seed.session.createdAt,
+              updatedAt: seed.session.updatedAt,
+            },
+          ],
+          edges: [
+            {
+              id: 'edge-1',
+              sessionId: seed.session.id,
+              fromNodeId: seed.session.rootNodeId,
+              toNodeId: 'node-2',
+              kind: 'decomposes-to',
+              createdAt: seed.session.createdAt,
+            },
+          ],
+        },
+        frontier: {
+          ...seed.frontier,
+          createdAt: '2026-04-19T10:04:00.000Z',
+          selections: [
+            {
+              nodeId: 'node-2',
+              scopeId: seed.session.activeScopeId,
+              utility: 1,
+              localEntropy: 0,
+              validationPressure: 0,
+              probability: 1,
+              rank: 1,
+              depthClamp: seed.frontier.depthClamp,
+            },
+          ],
+        },
+      },
+      clauses: [
+        {
+          kind: 'schema',
+          blocking: true,
+          description: 'The decomposed scope still exists.',
+          status: 'passed',
+        },
+      ],
+    });
+
+    expect(patch.validation.satisfiable).toBe(true);
+    expect(patch.session.status).toBe('validating');
+    expect(patch.session.summary.converged).toBe(false);
   });
 
   it('stays validating when only an inactive scope has structural refinement', () => {

@@ -1057,6 +1057,12 @@ describe('LibsqlPlanningSessionStore', () => {
             description: 'Planner session must retain an active scope.',
             status: 'passed',
           },
+          {
+            kind: 'coverage',
+            blocking: true,
+            description: 'The active scope is fully covered after decomposition.',
+            status: 'passed',
+          },
         ],
       });
 
@@ -1077,6 +1083,12 @@ describe('LibsqlPlanningSessionStore', () => {
             kind: 'schema',
             blocking: true,
             description: 'Planner session must retain an active scope.',
+            status: 'passed',
+          },
+          {
+            kind: 'coverage',
+            blocking: true,
+            description: 'The active scope is fully covered after decomposition.',
             status: 'passed',
           },
         ],
@@ -1101,6 +1113,66 @@ describe('LibsqlPlanningSessionStore', () => {
       const reloaded = await store.getActiveSession(context);
       expect(reloaded?.session.status).toBe('exploring');
       expect(reloaded?.session.summary.converged).toBe(false);
+
+      const secondWorktreePath = await mkdtemp(path.join(os.tmpdir(), 'brhp-libsql-coverage-required-'));
+      const secondDatabase = await openPlanningDatabase({ worktreePath: secondWorktreePath });
+
+      try {
+        const secondStore = new LibsqlPlanningSessionStore(secondDatabase.client);
+        const secondIds = createIdGenerator();
+        const secondRuntime = createPlannerRuntime({
+          clock: { now: () => new Date('2026-04-19T09:06:00.000Z') },
+          ids: secondIds,
+          store: secondStore,
+        });
+        const secondContext = {
+          worktreePath: secondWorktreePath,
+          opencodeSessionId: 'chat-convergence-no-coverage',
+        };
+
+        await secondRuntime.create(
+          secondContext,
+          {
+            directories: {
+              global: '/global',
+              project: `${secondWorktreePath}/.opencode/brhp/instructions`,
+            },
+            instructions: [],
+            counts: { global: 0, project: 0, total: 0, skipped: 0 },
+            skippedFiles: [],
+          },
+          'Persist BRHP convergence without coverage closure'
+        );
+
+        await secondRuntime.decomposeNode(secondContext, {
+          nodeId: (await secondStore.getActiveSession(secondContext))?.session.rootNodeId ?? '',
+          children: [
+            {
+              title: 'Provide decomposition evidence',
+              problemStatement: 'Convergence still requires explicit coverage closure.',
+              category: 'dependent',
+            },
+          ],
+        });
+
+        await secondRuntime.recordValidation(secondContext, {
+          clauses: [
+            {
+              kind: 'schema',
+              blocking: true,
+              description: 'Planner session must retain an active scope.',
+              status: 'passed',
+            },
+          ],
+        });
+
+        const notConverged = await secondStore.getActiveSession(secondContext);
+        expect(notConverged?.session.status).toBe('validating');
+        expect(notConverged?.session.summary.converged).toBe(false);
+      } finally {
+        secondDatabase.close();
+        await rm(secondWorktreePath, { recursive: true, force: true });
+      }
     } finally {
       database.close();
       await rm(worktreePath, { recursive: true, force: true });

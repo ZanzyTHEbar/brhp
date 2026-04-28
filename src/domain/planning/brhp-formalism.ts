@@ -1,6 +1,10 @@
 import type { FrontierCandidate, FrontierSelection } from './frontier.js';
 import type { PlanNodeStatus } from './plan-node.js';
-import type { ValidationFormula, ValidationVerdict } from './validation.js';
+import type {
+  ValidationClause,
+  ValidationFormula,
+  ValidationVerdict,
+} from './validation.js';
 
 const MIN_TEMPERATURE = 0.001;
 const MIN_DISTRIBUTION_SUM = 1e-9;
@@ -20,6 +24,7 @@ export interface ConvergenceInput {
   readonly blockingFindings: number;
   readonly pendingBlockingClauses: number;
   readonly hasStructuralRefinement: boolean;
+  readonly hasCoverageClosure: boolean;
   readonly entropyThreshold: number;
   readonly driftThreshold: number;
   readonly stabilityThreshold: number;
@@ -160,6 +165,20 @@ export function evaluateValidationFormula(
   };
 }
 
+export function evaluateCoverageClosure(
+  clauses: readonly Pick<ValidationClause, 'kind' | 'blocking' | 'status'>[]
+): boolean {
+  const blockingCoverageClauses = clauses.filter(
+    clause => clause.kind === 'coverage' && clause.blocking
+  );
+
+  if (blockingCoverageClauses.length === 0) {
+    return false;
+  }
+
+  return blockingCoverageClauses.every(clause => clause.status === 'passed');
+}
+
 export function computeValidationPressure(
   input: ValidationPressureInput
 ): number {
@@ -211,6 +230,10 @@ export function evaluateConvergence(
 
   if (!input.hasStructuralRefinement) {
     reasons.push('no structural refinement has been recorded');
+  }
+
+  if (!input.hasCoverageClosure) {
+    reasons.push('coverage closure has not been established');
   }
 
   return {

@@ -292,6 +292,12 @@ describe('createPlannerRuntime', () => {
           description: 'Planner session must have an active scope.',
           status: 'passed',
         },
+        {
+          kind: 'coverage',
+          blocking: true,
+          description: 'The active scope is fully covered after decomposition.',
+          status: 'passed',
+        },
       ],
     });
 
@@ -302,6 +308,60 @@ describe('createPlannerRuntime', () => {
 
     expect(mutation.state.session.status).toBe('converged');
     expect(mutation.state.session.summary.converged).toBe(true);
+  });
+
+  it('stays validating after decomposition when validation is satisfiable but lacks coverage closure', async () => {
+    const store = createInMemoryStore();
+    const ids = createIdGenerator();
+    const runtime = createPlannerRuntime({
+      clock: { now: () => new Date('2026-04-18T10:12:00.000Z') },
+      ids,
+      store,
+    });
+    const context = { worktreePath: '/repo', opencodeSessionId: 'chat-5c' };
+
+    await runtime.create(
+      context,
+      {
+        directories: { global: '/global', project: '/repo/.opencode/brhp/instructions' },
+        instructions: [],
+        counts: { global: 0, project: 0, total: 0, skipped: 0 },
+        skippedFiles: [],
+      },
+      'Reach BRHP convergence after decomposition'
+    );
+
+    const initial = await runtime.getActive(context);
+
+    await runtime.decomposeNode(context, {
+      nodeId: initial?.session.rootNodeId ?? '',
+      children: [
+        {
+          title: 'Explicit refinement',
+          problemStatement: 'Provide decomposition evidence before convergence.',
+          category: 'dependent',
+        },
+      ],
+    });
+
+    const mutation = await runtime.recordValidation(context, {
+      clauses: [
+        {
+          kind: 'schema',
+          blocking: true,
+          description: 'Planner session must have an active scope.',
+          status: 'passed',
+        },
+      ],
+    });
+
+    expect(mutation.kind).toBe('validation-recorded');
+    if (mutation.kind !== 'validation-recorded') {
+      throw new Error('Expected validation mutation');
+    }
+
+    expect(mutation.state.session.status).toBe('validating');
+    expect(mutation.state.session.summary.converged).toBe(false);
   });
 
   it('preserves validation pressure after decomposing within an unsatisfied active scope', async () => {
@@ -386,6 +446,19 @@ describe('createPlannerRuntime', () => {
       'Invalidate convergence by decomposing'
     );
 
+    const initial = await runtime.getActive(context);
+
+    await runtime.decomposeNode(context, {
+      nodeId: initial?.session.rootNodeId ?? '',
+      children: [
+        {
+          title: 'Establish convergence precondition',
+          problemStatement: 'Provide structural refinement before convergence.',
+          category: 'dependent',
+        },
+      ],
+    });
+
     await runtime.recordValidation(context, {
       clauses: [
         {
@@ -394,14 +467,22 @@ describe('createPlannerRuntime', () => {
           description: 'Planner session must have an active scope.',
           status: 'passed',
         },
+        {
+          kind: 'coverage',
+          blocking: true,
+          description: 'The active scope is fully covered after decomposition.',
+          status: 'passed',
+        },
       ],
     });
 
     const converged = await runtime.getActive(context);
-    const rootNodeId = converged?.session.rootNodeId ?? '';
+    expect(converged?.session.status).toBe('converged');
+    expect(converged?.session.summary.converged).toBe(true);
+    const frontierNodeId = converged?.frontier?.selections[0]?.nodeId ?? '';
 
     const mutation = await runtime.decomposeNode(context, {
-      nodeId: rootNodeId,
+      nodeId: frontierNodeId,
       children: [
         {
           title: 'Invalidate the converged frontier',

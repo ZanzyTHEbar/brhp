@@ -3,6 +3,7 @@ import type { IdGeneratorPort } from '../ports/id-generator-port.js';
 import type { PlanningValidationRecordPatch } from '../ports/planning-session-store-port.js';
 import {
   DEFAULT_CONVERGENCE_THRESHOLDS,
+  evaluateCoverageClosure,
   evaluateConvergence,
   evaluateValidationFormula,
 } from '../../domain/planning/brhp-formalism.js';
@@ -79,6 +80,7 @@ export function recordActiveScopeValidation(
       .filter(node => node.scopeId === input.state.session.activeScopeId)
       .map(node => node.id)
   );
+  const hasCoverageClosure = evaluateCoverageClosure(clauses);
   const convergence = evaluateConvergence({
     globalEntropy: frontierUpdate.summary.globalEntropy,
     entropyDrift: frontierUpdate.summary.entropyDrift,
@@ -91,6 +93,7 @@ export function recordActiveScopeValidation(
         activeScopeNodeIds.has(edge.fromNodeId) &&
         activeScopeNodeIds.has(edge.toNodeId)
     ),
+    hasCoverageClosure,
     ...DEFAULT_CONVERGENCE_THRESHOLDS,
   });
   const nextConverged = convergence.converged;

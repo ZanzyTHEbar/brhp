@@ -165,13 +165,21 @@ Blocking clauses must be explicitly passed for `SAT(Φ_Q)` to hold.
 
 ## Convergence
 
-Planning converges only when entropy, the magnitude of drift, frontier stability, validation, and explicit structural refinement all clear their thresholds:
+Planning converges only when entropy, the magnitude of drift, frontier stability, validation, explicit structural refinement, and blocking coverage closure all clear their thresholds:
 
 ```text
-Converged_t = (H_g ≤ ε_H) ∧ (|ΔH_g| ≤ ε_Δ) ∧ (Ξ_t ≥ ε_Ξ) ∧ (blocking findings = 0) ∧ (pending blocking clauses = 0) ∧ (∃ e ∈ E_t(active scope) : e.kind = decomposes-to)
+Converged_t = (H_g ≤ ε_H) ∧ (|ΔH_g| ≤ ε_Δ) ∧ (Ξ_t ≥ ε_Ξ) ∧ (blocking findings = 0) ∧ (pending blocking clauses = 0) ∧ (∃ e ∈ E_t(active scope) : e.kind = decomposes-to) ∧ CoverageClosed_t
 ```
 
 The structural-refinement predicate is evaluated against the active-scope subgraph, not arbitrary decomposition edges elsewhere in the session.
+
+Coverage closure in BRHP v1 is defined over the latest active-scope validation snapshot:
+
+```text
+CoverageClosed_t = (∃ c ∈ Φ_Q : c.kind = coverage ∧ c.blocking = true) ∧ (∀ c ∈ Φ_Q : c.kind = coverage ∧ c.blocking = true => c.status = passed)
+```
+
+Leaf completion remains deferred because the current BRHP runtime has no authoritative completion mutation or tool.
 
 ## Source-of-truth mapping
 

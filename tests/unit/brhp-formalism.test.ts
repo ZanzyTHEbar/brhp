@@ -6,6 +6,7 @@ import {
   computeEntropy,
   computeGlobalEntropy,
   computeValidationPressure,
+  evaluateCoverageClosure,
   evaluateConvergence,
   evaluateValidationFormula,
 } from '../../src/domain/planning/brhp-formalism.js';
@@ -158,6 +159,43 @@ describe('brhp-formalism', () => {
     expect(verdict.pendingBlockingClauses).toBe(1);
   });
 
+  it('requires at least one blocking coverage clause and all such clauses passed for coverage closure', () => {
+    expect(
+      evaluateCoverageClosure([
+        {
+          kind: 'schema',
+          blocking: true,
+          status: 'passed',
+        },
+      ])
+    ).toBe(false);
+
+    expect(
+      evaluateCoverageClosure([
+        {
+          kind: 'coverage',
+          blocking: true,
+          status: 'pending',
+        },
+      ])
+    ).toBe(false);
+
+    expect(
+      evaluateCoverageClosure([
+        {
+          kind: 'coverage',
+          blocking: true,
+          status: 'passed',
+        },
+        {
+          kind: 'coverage',
+          blocking: true,
+          status: 'passed',
+        },
+      ])
+    ).toBe(true);
+  });
+
   it('computes validation pressure from verdict severity, status, and depth', () => {
     const verdict = evaluateValidationFormula({
       scopeId: 'scope-1',
@@ -209,6 +247,7 @@ describe('brhp-formalism', () => {
         blockingFindings: 0,
         pendingBlockingClauses: 0,
         hasStructuralRefinement: true,
+        hasCoverageClosure: true,
         entropyThreshold: 0.2,
         driftThreshold: 0.05,
         stabilityThreshold: 0.9,
@@ -223,6 +262,7 @@ describe('brhp-formalism', () => {
         blockingFindings: 0,
         pendingBlockingClauses: 0,
         hasStructuralRefinement: true,
+        hasCoverageClosure: true,
         entropyThreshold: 0.2,
         driftThreshold: 0.05,
         stabilityThreshold: 0.9,
@@ -240,6 +280,7 @@ describe('brhp-formalism', () => {
         blockingFindings: 0,
         pendingBlockingClauses: 0,
         hasStructuralRefinement: true,
+        hasCoverageClosure: true,
         entropyThreshold: 0.2,
         driftThreshold: 0.05,
         stabilityThreshold: 0.9,
@@ -257,6 +298,7 @@ describe('brhp-formalism', () => {
         blockingFindings: 0,
         pendingBlockingClauses: 0,
         hasStructuralRefinement: false,
+        hasCoverageClosure: true,
         entropyThreshold: 0.2,
         driftThreshold: 0.05,
         stabilityThreshold: 0.9,
@@ -264,6 +306,24 @@ describe('brhp-formalism', () => {
     ).toEqual({
       converged: false,
       reasons: ['no structural refinement has been recorded'],
+    });
+
+    expect(
+      evaluateConvergence({
+        globalEntropy: 0.1,
+        entropyDrift: 0.01,
+        frontierStability: 0.95,
+        blockingFindings: 0,
+        pendingBlockingClauses: 0,
+        hasStructuralRefinement: true,
+        hasCoverageClosure: false,
+        entropyThreshold: 0.2,
+        driftThreshold: 0.05,
+        stabilityThreshold: 0.9,
+      })
+    ).toEqual({
+      converged: false,
+      reasons: ['coverage closure has not been established'],
     });
   });
 });
