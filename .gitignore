@@ -1,4 +1,10 @@
 node_modules/
 dist/
 coverage/
+.opencode/node_modules/
+.opencode/package.json
+.opencode/package-lock.json
+.opencode/pnpm-lock.yaml
+.opencode/bun.lock
+.opencode/bun.lockb
 .opencode/brhp/*.db*

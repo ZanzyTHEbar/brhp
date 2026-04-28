@@ -119,3 +119,7 @@ See [docs/architecture.md](./docs/architecture.md).
 For the mathematical BRHP model, see [docs/formal-spec.md](./docs/formal-spec.md).
 
 For the curated active backlog and deferred advanced roadmap, see [todo.md](./todo.md).
+
+## License
+
+MIT. See [LICENSE](./LICENSE).

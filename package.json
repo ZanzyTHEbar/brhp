@@ -3,6 +3,14 @@
   "name": "brhp",
   "version": "0.1.0",
   "description": "Hexagonal OpenCode plugin scaffold for BRHP",
+  "homepage": "https://github.com/ZanzyTHEbar/brhp#readme",
+  "bugs": {
+    "url": "https://github.com/ZanzyTHEbar/brhp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZanzyTHEbar/brhp.git"
+  },
   "type": "module",
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
