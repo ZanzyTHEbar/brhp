@@ -50,22 +50,45 @@ Requirements:
 - OpenCode `v1.4.0+`
 - Node.js `20+`
 
-Enable the plugin in OpenCode:
+BRHP is not published on npm yet. Until it is, load it from a local checkout with OpenCode's path-like plugin spec support and a `file://` package path.
+
+Local checkout requirements:
+
+- `pnpm`
+- `bun`
+
+Build BRHP locally:
+
+```bash
+corepack enable
+pnpm install
+pnpm build
+```
+
+Then add the local package path to your OpenCode runtime config.
+
+`opencode.json`
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["brhp"]
+  "plugin": ["file:///absolute/path/to/brhp"]
 }
 ```
 
-Enable the TUI plugin:
+Add the same local package path to your OpenCode TUI config.
+
+`tui.json`
 
 ```json
 {
-  "plugin": ["brhp"]
+  "plugin": ["file:///absolute/path/to/brhp"]
 }
 ```
+
+Restart OpenCode after changing plugin config. Re-run `pnpm build` after local BRHP source changes.
+
+After BRHP is published to npm, replace the `file://` entries with `"brhp"` in both config files.
 
 Common commands:
 

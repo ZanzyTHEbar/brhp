@@ -25,7 +25,7 @@
     },
     "./tui": {
       "types": "./dist/src/tui/index.d.ts",
-      "import": "./dist/src/tui/index.js"
+      "import": "./dist/tui/index.js"
     }
   },
   "files": [
@@ -36,12 +36,13 @@
     "sqlc.yaml"
   ],
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && bun ./scripts/build-tui.mjs",
     "db:compile": "sqlc compile",
     "db:vet": "sqlc vet",
+    "prepack": "npm run build && npm run verify:package",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "verify:package": "node ./scripts/verify-package.mjs"
+    "verify:package": "bun ./scripts/verify-package.mjs"
   },
   "keywords": [
     "opencode",
