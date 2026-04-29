@@ -5,6 +5,7 @@ import {
 } from '../../domain/slash-command/brhp-command.js';
 import type { PlannerRuntimeMutation } from '../services/planner-runtime.js';
 import type { PlanningState } from '../../domain/planning/planning-session.js';
+import type { BrhpRuntimeDiagnostic } from './classify-runtime-diagnostic.js';
 import { buildPlanningSessionSummary } from './build-planning-session-summary.js';
 import { buildPlanningHistoryResponse } from './build-planning-history-response.js';
 
@@ -13,6 +14,7 @@ export function buildSlashCommandResponse(
   options?: {
     readonly activePlanningState?: PlanningState | null;
     readonly mutation?: PlannerRuntimeMutation;
+    readonly diagnostics?: readonly BrhpRuntimeDiagnostic[];
     readonly history?: {
       readonly active: boolean;
       readonly sessionId?: string;
@@ -26,20 +28,31 @@ export function buildSlashCommandResponse(
   }
 
   const commandName = `/${BRHP_COMMAND_NAME}`;
+  const diagnostics = options?.diagnostics ?? [];
+  const instructionDiagnostic = diagnostics.find(diagnostic => diagnostic.kind === 'instructions');
+  const plannerRuntimeDiagnostic = diagnostics.find(
+    diagnostic => diagnostic.kind === 'planner-runtime'
+  );
   const instructionLines =
-    inventory.instructions.length > 0
+    instructionDiagnostic !== undefined
+      ? [`- Unavailable: ${instructionDiagnostic.message}`]
+      : inventory.instructions.length > 0
       ? inventory.instructions.map(
           instruction =>
             `- [${instruction.source}] ${instruction.title} (${instruction.relativePath})`
         )
       : ['- No enabled instructions found'];
-  const skippedLines = inventory.skippedFiles.map(
-    skipped => `- [${skipped.source}] ${skipped.relativePath} (${skipped.reason})`
-  );
+  const skippedLines =
+    instructionDiagnostic !== undefined
+      ? []
+      : inventory.skippedFiles.map(
+          skipped => `- [${skipped.source}] ${skipped.relativePath} (${skipped.reason})`
+        );
   const planningSummary = options?.activePlanningState
     ? buildPlanningSessionSummary(options.activePlanningState)
     : null;
   const mutationLines = options?.mutation ? renderMutation(options.mutation) : [];
+  const diagnosticLines = renderDiagnostics(diagnostics);
 
   return [
     '# BRHP Plugin',
@@ -72,7 +85,10 @@ export function buildSlashCommandResponse(
               ]
             : []),
         ]
-      : ['- None active for this OpenCode session']),
+      : plannerRuntimeDiagnostic !== undefined
+        ? [`- Unavailable: ${plannerRuntimeDiagnostic.message}`]
+        : ['- None active for this OpenCode session']),
+    ...(diagnosticLines.length > 0 ? ['', 'Runtime diagnostics:', ...diagnosticLines] : []),
     ...(mutationLines.length > 0 ? ['', 'Last action:', ...mutationLines] : []),
     '',
     'Instruction directories:',
@@ -85,8 +101,27 @@ export function buildSlashCommandResponse(
     'Skipped files:',
     ...(skippedLines.length > 0 ? skippedLines : ['- None']),
     '',
-    `Totals: ${inventory.counts.total} loaded (${inventory.counts.global} global, ${inventory.counts.project} project, ${inventory.counts.skipped} skipped)`,
+    instructionDiagnostic !== undefined
+      ? 'Totals: unavailable while BRHP instructions could not be loaded'
+      : `Totals: ${inventory.counts.total} loaded (${inventory.counts.global} global, ${inventory.counts.project} project, ${inventory.counts.skipped} skipped)`,
   ].join('\n');
+}
+
+function renderDiagnostics(diagnostics: readonly BrhpRuntimeDiagnostic[]): string[] {
+  return diagnostics.map(diagnostic =>
+    `- ${formatDiagnosticKind(diagnostic.kind)}: ${diagnostic.message}`
+  );
+}
+
+function formatDiagnosticKind(kind: BrhpRuntimeDiagnostic['kind']): string {
+  switch (kind) {
+    case 'instructions':
+      return 'Instructions';
+    case 'planner-runtime':
+      return 'Planner runtime';
+    case 'unknown':
+      return 'Unknown';
+  }
 }
 
 function renderMutation(mutation: PlannerRuntimeMutation): string[] {

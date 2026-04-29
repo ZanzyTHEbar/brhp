@@ -1,10 +1,16 @@
+import path from 'node:path';
+
 import type { Hooks, PluginInput } from '@opencode-ai/plugin';
 
 import { parseBrhpCommand } from '../application/use-cases/parse-brhp-command.js';
 import { buildSlashCommandResponse } from '../application/use-cases/build-slash-command-response.js';
+import { classifyRuntimeDiagnostic } from '../application/use-cases/classify-runtime-diagnostic.js';
+import type { BrhpRuntimeDiagnostic } from '../application/use-cases/classify-runtime-diagnostic.js';
 import { buildSystemPromptSection } from '../application/use-cases/build-system-prompt-section.js';
 import type { PlannerRuntime } from '../application/services/planner-runtime.js';
 import type { PlannerRuntimeMutation } from '../application/services/planner-runtime.js';
+import type { InstructionInventory } from '../domain/instructions/instruction.js';
+import type { PlanningState } from '../domain/planning/planning-session.js';
 import { PLANNING_HISTORY_EVENTS_LIMIT } from '../domain/planning/planning-event.js';
 import { withPlannerRuntimeForWorktree } from './create-planner-runtime.js';
 import { createPlannerTools } from './create-planner-tools.js';
@@ -94,7 +100,14 @@ export async function createServerPluginHooksWithRuntimeAccess(
 
       switch (parsed.command.kind) {
         case 'status':
-          break;
+          await renderStatusResponse({
+            output,
+            runtimeAccess,
+            sessionID: commandInput.sessionID,
+            projectDirectory,
+            context,
+          });
+          return;
         case 'history': {
           const history = await runtimeAccess.withRuntime(
             commandInput.sessionID,
@@ -184,5 +197,65 @@ export async function createServerPluginHooksWithRuntimeAccess(
         output.system.push(section);
       }
     },
+  };
+}
+
+async function renderStatusResponse(input: {
+  readonly output: Parameters<NonNullable<Hooks['command.execute.before']>>[1];
+  readonly runtimeAccess: ServerPlannerRuntimeAccess;
+  readonly sessionID: string;
+  readonly projectDirectory: string;
+  readonly context: {
+    readonly worktreePath: string;
+    readonly opencodeSessionId: string;
+  };
+}): Promise<void> {
+  const diagnostics: BrhpRuntimeDiagnostic[] = [];
+  let inventory: InstructionInventory;
+
+  try {
+    inventory = await createInstructionInventoryLoader(input.projectDirectory)();
+  } catch (cause) {
+    diagnostics.push(classifyRuntimeDiagnostic('instructions', cause));
+    inventory = createUnavailableInstructionInventory(input.projectDirectory);
+  }
+
+  let activePlanningState: PlanningState | null = null;
+
+  try {
+    activePlanningState = await input.runtimeAccess.withRuntime(
+      input.sessionID,
+      input.projectDirectory,
+      runtime => runtime.getActive(input.context)
+    );
+  } catch (cause) {
+    diagnostics.push(classifyRuntimeDiagnostic('planner-runtime', cause));
+  }
+
+  input.output.parts.length = 0;
+  input.output.parts.push({
+    type: 'text',
+    text: buildSlashCommandResponse(inventory, {
+      activePlanningState,
+      mutation: { kind: 'none' },
+      diagnostics,
+    }),
+  } as (typeof input.output.parts)[number]);
+}
+
+function createUnavailableInstructionInventory(projectDirectory: string): InstructionInventory {
+  return {
+    directories: {
+      global: 'unavailable',
+      project: path.join(projectDirectory, '.opencode', 'brhp', 'instructions'),
+    },
+    instructions: [],
+    counts: {
+      global: 0,
+      project: 0,
+      total: 0,
+      skipped: 0,
+    },
+    skippedFiles: [],
   };
 }

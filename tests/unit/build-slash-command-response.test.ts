@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildSlashCommandResponse } from '../../src/application/use-cases/build-slash-command-response.js';
+import { classifyRuntimeDiagnostic } from '../../src/application/use-cases/classify-runtime-diagnostic.js';
 
 describe('buildSlashCommandResponse', () => {
   it('summarizes command identity, directories, and loaded instructions', () => {
@@ -37,6 +38,40 @@ describe('buildSlashCommandResponse', () => {
     expect(response).toContain('[project] Local guidance (local.md)');
     expect(response).toContain('Skipped files:');
     expect(response).toContain('Totals: 1 loaded');
+  });
+
+  it('renders runtime diagnostics without exposing internal causes', () => {
+    const cause = new Error('internal path /repo/.opencode/brhp/brhp.db failed');
+    const response = buildSlashCommandResponse(
+      {
+        directories: {
+          global: 'unavailable',
+          project: '/repo/.opencode/brhp/instructions',
+        },
+        instructions: [],
+        counts: {
+          global: 0,
+          project: 0,
+          total: 0,
+          skipped: 0,
+        },
+        skippedFiles: [],
+      },
+      {
+        diagnostics: [
+          classifyRuntimeDiagnostic('instructions', cause),
+          classifyRuntimeDiagnostic('planner-runtime', cause),
+        ],
+      }
+    );
+
+    expect(response).toContain('Planning session:\n- Unavailable: Unable to load BRHP planner runtime');
+    expect(response).toContain('Runtime diagnostics:');
+    expect(response).toContain('- Instructions: Unable to load BRHP instructions');
+    expect(response).toContain('- Planner runtime: Unable to load BRHP planner runtime');
+    expect(response).toContain('Loaded instructions:\n- Unavailable: Unable to load BRHP instructions');
+    expect(response).toContain('Totals: unavailable while BRHP instructions could not be loaded');
+    expect(response).not.toContain('internal path');
   });
 
   it('renders active planning session details and mutation summaries', () => {

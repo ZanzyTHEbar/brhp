@@ -106,6 +106,106 @@ describe('createServerPluginHooks', () => {
     }
   });
 
+  it('renders status diagnostics when instruction loading fails', async () => {
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'brhp-server-instruction-diagnostic-'));
+    const projectDirectory = path.join(tempRoot, 'project');
+    const projectBrhpDirectory = path.join(projectDirectory, '.opencode', 'brhp');
+    let runtimeCalls = 0;
+
+    await mkdir(projectBrhpDirectory, { recursive: true });
+    await writeFile(path.join(projectBrhpDirectory, 'instructions'), 'not a directory');
+
+    try {
+      const hooks = await createServerPluginHooksWithRuntimeAccess(createPluginInput(projectDirectory), {
+        async withRuntime(_sessionID, _worktreePath, execute) {
+          runtimeCalls += 1;
+          return execute({
+            async getActive() {
+              return null;
+            },
+            async getActiveSessionHistory() {
+              return {
+                active: false as const,
+                events: [] as const,
+              };
+            },
+            async create() {
+              throw new Error('not used');
+            },
+            async resume() {
+              throw new Error('not used');
+            },
+            async decomposeNode() {
+              throw new Error('not used');
+            },
+            async recordValidation() {
+              throw new Error('not used');
+            },
+          } as never);
+        },
+      });
+      const output = {
+        parts: [{ type: 'text', text: 'replace me' }],
+      };
+
+      await hooks['command.execute.before']?.(
+        {
+          command: 'brhp',
+          sessionID: 'chat-instruction-diagnostic',
+          arguments: '',
+        },
+        output as never
+      );
+
+      const text = String(output.parts[0]?.text ?? '');
+      expect(text).toContain('Runtime diagnostics:');
+      expect(text).toContain('- Instructions: Unable to load BRHP instructions');
+      expect(text).toContain('Loaded instructions:\n- Unavailable: Unable to load BRHP instructions');
+      expect(text).toContain('Totals: unavailable while BRHP instructions could not be loaded');
+      expect(text).toContain('- None active for this OpenCode session');
+      expect(runtimeCalls).toBe(1);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('renders all status diagnostics when instruction and runtime loading fail', async () => {
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'brhp-server-all-diagnostics-'));
+    const projectDirectory = path.join(tempRoot, 'project');
+    const projectBrhpDirectory = path.join(projectDirectory, '.opencode', 'brhp');
+
+    await mkdir(projectBrhpDirectory, { recursive: true });
+    await writeFile(path.join(projectBrhpDirectory, 'instructions'), 'not a directory');
+
+    try {
+      const hooks = await createServerPluginHooksWithRuntimeAccess(createPluginInput(projectDirectory), {
+        async withRuntime() {
+          throw new Error('open failed');
+        },
+      });
+      const output = {
+        parts: [{ type: 'text', text: 'replace me' }],
+      };
+
+      await hooks['command.execute.before']?.(
+        {
+          command: 'brhp',
+          sessionID: 'chat-all-diagnostics',
+          arguments: '',
+        },
+        output as never
+      );
+
+      const text = String(output.parts[0]?.text ?? '');
+      expect(text).toContain('Planning session:\n- Unavailable: Unable to load BRHP planner runtime');
+      expect(text).toContain('- Instructions: Unable to load BRHP instructions');
+      expect(text).toContain('- Planner runtime: Unable to load BRHP planner runtime');
+      expect(text).not.toContain('open failed');
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   it('injects a system prompt section when instructions are loaded', async () => {
     const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'brhp-server-system-'));
     const configRoot = path.join(tempRoot, 'config');
@@ -495,6 +595,10 @@ describe('createServerPluginHooks', () => {
       },
     });
 
+    const failedOutput = {
+      parts: [{ type: 'text', text: 'replace me' }],
+    };
+
     await expect(
       hooks['command.execute.before']?.(
         {
@@ -502,9 +606,13 @@ describe('createServerPluginHooks', () => {
           sessionID: 'chat-retry',
           arguments: '',
         },
-        { parts: [] } as never
+        failedOutput as never
       )
-    ).rejects.toThrow('open failed');
+    ).resolves.toBeUndefined();
+
+    const failedText = String(failedOutput.parts[0]?.text ?? '');
+    expect(failedText).toContain('Runtime diagnostics:');
+    expect(failedText).toContain('- Planner runtime: Unable to load BRHP planner runtime');
 
     await expect(
       hooks['command.execute.before']?.(
