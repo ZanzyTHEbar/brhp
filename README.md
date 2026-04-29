@@ -30,6 +30,7 @@ BRHP currently provides:
 
 - a `/brhp` slash command for inspecting, creating, and resuming planning sessions
 - a `/brhp history` view for deeper bounded recent planner history on the active session
+- a `/brhp inspect` view for bounded graph, frontier, and validation drill-down on the active session
 - a TUI sidebar for the current planning state
 - instruction loading from both user-level and project-level directories
 - local persistence so planning sessions survive across turns and restarts
@@ -63,6 +64,7 @@ Build BRHP locally:
 corepack enable
 pnpm install
 pnpm build
+pnpm verify:package
 ```
 
 Then add the local package path to your OpenCode runtime config.
@@ -94,6 +96,7 @@ Common commands:
 
 - `/brhp` or `/brhp status` to inspect the active planning session
 - `/brhp history` to inspect the newest 25 planner events for the active session
+- `/brhp inspect` to inspect bounded graph, frontier, validation, node, edge, and activity detail for the active session
 - `/brhp plan <problem statement>` to start a new planning session
 - `/brhp resume <session id>` to resume an existing session
 

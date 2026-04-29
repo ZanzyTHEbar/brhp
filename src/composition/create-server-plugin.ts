@@ -6,6 +6,7 @@ import { parseBrhpCommand } from '../application/use-cases/parse-brhp-command.js
 import { buildSlashCommandResponse } from '../application/use-cases/build-slash-command-response.js';
 import { classifyRuntimeDiagnostic } from '../application/use-cases/classify-runtime-diagnostic.js';
 import type { BrhpRuntimeDiagnostic } from '../application/use-cases/classify-runtime-diagnostic.js';
+import { buildPlanningInspectResponse } from '../application/use-cases/build-planning-inspect-response.js';
 import { buildSystemPromptSection } from '../application/use-cases/build-system-prompt-section.js';
 import type { PlannerRuntime } from '../application/services/planner-runtime.js';
 import type { PlannerRuntimeMutation } from '../application/services/planner-runtime.js';
@@ -143,6 +144,15 @@ export async function createServerPluginHooksWithRuntimeAccess(
           } as (typeof output.parts)[number]);
           return;
         }
+        case 'inspect':
+          await renderInspectResponse({
+            output,
+            runtimeAccess,
+            sessionID: commandInput.sessionID,
+            projectDirectory,
+            context,
+          });
+          return;
         case 'plan': {
           const inventory = await createInstructionInventoryLoader(projectDirectory)();
           const { problemStatement } = parsed.command;
@@ -238,6 +248,39 @@ async function renderStatusResponse(input: {
     text: buildSlashCommandResponse(inventory, {
       activePlanningState,
       mutation: { kind: 'none' },
+      diagnostics,
+    }),
+  } as (typeof input.output.parts)[number]);
+}
+
+async function renderInspectResponse(input: {
+  readonly output: Parameters<NonNullable<Hooks['command.execute.before']>>[1];
+  readonly runtimeAccess: ServerPlannerRuntimeAccess;
+  readonly sessionID: string;
+  readonly projectDirectory: string;
+  readonly context: {
+    readonly worktreePath: string;
+    readonly opencodeSessionId: string;
+  };
+}): Promise<void> {
+  const diagnostics: BrhpRuntimeDiagnostic[] = [];
+  let activePlanningState: PlanningState | null = null;
+
+  try {
+    activePlanningState = await input.runtimeAccess.withRuntime(
+      input.sessionID,
+      input.projectDirectory,
+      runtime => runtime.getActive(input.context)
+    );
+  } catch (cause) {
+    diagnostics.push(classifyRuntimeDiagnostic('planner-runtime', cause));
+  }
+
+  input.output.parts.length = 0;
+  input.output.parts.push({
+    type: 'text',
+    text: buildPlanningInspectResponse({
+      state: activePlanningState,
       diagnostics,
     }),
   } as (typeof input.output.parts)[number]);

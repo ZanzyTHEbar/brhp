@@ -4,12 +4,16 @@
 
 This file is a curated engineering backlog, not a release promise. Deferred roadmap items below are intentionally out of current scope.
 
-1. Next active batch: richer operator drill-down beyond `/brhp history`
-   - decide whether `/brhp` or the TUI needs per-session drill-down beyond the current bounded summaries
-   - keep richer operator surfaces behind the existing narrow tool surface
+1. Next active batch: launch publication and listings
+   - finish final package validation after launch-readiness and inspect/status diagnostics settle
+   - monitor and respond to official OpenCode ecosystem issue/PR feedback
+   - monitor and respond to `awesome-opencode` listing PR feedback
+   - submit BRHP to opencode.cafe through the authenticated browser form
+   - publish `brhp` to npm after npm auth is available
+   - smoke-test a clean npm install with OpenCode server and TUI plugin loading
 
 2. Next active batch: state-contract freeze / backlog checkpoint
-   - freeze the read-model and operator-surface contract after diagnostics and drill-down settle
+   - freeze the read-model and operator-surface contract after launch publication/listing work closes
    - reconcile repo docs, Memory Bank, Linear, and saga against the stabilized contract
 
 ## Landed foundation
@@ -31,6 +35,9 @@ This file is a curated engineering backlog, not a release promise. Deferred road
 - `/brhp history` now exposes a deeper bounded recent event log for the active session while summary surfaces remain compact
 - sidebar load diagnostics now distinguish BRHP instruction-load failures from planner-runtime failures
 - `/brhp status` now mirrors instruction-load vs planner-runtime diagnostics, preserves internal causes for future operator inspection, and keeps user-facing output stack-free
+- `/brhp inspect` now exposes bounded graph, frontier, validation, focus-node, edge, and recent-activity drill-down for the active session without widening planner tools
+- package readiness is hardened with server/TUI export verification, packed-artifact smoke tests, local `file://` install guidance, and prerelease npm-publish guardrails
+- official OpenCode ecosystem issue/PR and `awesome-opencode` listing PR are open; opencode.cafe and npm publication remain external/authenticated follow-ups
 
 ## Near-term promotion candidates
 
@@ -64,4 +71,5 @@ These items remain intentionally out of scope until stronger orchestration, prov
 - do not start scheduler or agent-spawning work before stronger orchestration semantics exist beyond the current per-operation/TUI lifecycle model
 - do not start graph-heavy TUI work before planner state and policy provenance stop moving
 - do not promote near-term candidates before the current active batches plus diagnostics, operator drill-down, and state-contract freeze are complete
+- do not expand product scope before package publication, listing submissions, and clean-install smoke tests are complete
 - do not promote multi-session editing before session selection, history, and conflict semantics are operator-visible and tested

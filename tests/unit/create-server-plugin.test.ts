@@ -467,6 +467,29 @@ describe('createServerPluginHooks', () => {
       expect(historyText).toContain('validation-recorded');
       expect(historyText).toContain('node-decomposed');
 
+      const inspectOutput = {
+        parts: [{ type: 'text', text: 'replace me' }],
+      };
+
+      await hooks['command.execute.before']?.(
+        {
+          command: 'brhp',
+          sessionID: 'chat-b',
+          arguments: 'inspect',
+        },
+        inspectOutput as never
+      );
+
+      const inspectText = String(inspectOutput.parts[0]?.text ?? '');
+      expect(inspectText).toContain('# BRHP Inspect');
+      expect(inspectText).toContain(`- ID: ${createdSessionId}`);
+      expect(inspectText).toContain('Graph:');
+      expect(inspectText).toContain('Frontier selections:');
+      expect(inspectText).toContain('Validation:');
+      expect(inspectText).toContain('Focus nodes:');
+      expect(inspectText).toContain('Edges:');
+      expect(inspectText).toContain('Recent activity:');
+
       const emptyHistoryOutput = {
         parts: [{ type: 'text', text: 'replace me' }],
       };
@@ -483,6 +506,23 @@ describe('createServerPluginHooks', () => {
       const emptyHistoryText = String(emptyHistoryOutput.parts[0]?.text ?? '');
       expect(emptyHistoryText).toContain('# BRHP History');
       expect(emptyHistoryText).toContain('No active BRHP planning session exists for this OpenCode chat.');
+
+      const emptyInspectOutput = {
+        parts: [{ type: 'text', text: 'replace me' }],
+      };
+
+      await hooks['command.execute.before']?.(
+        {
+          command: 'brhp',
+          sessionID: 'chat-empty',
+          arguments: 'inspect',
+        },
+        emptyInspectOutput as never
+      );
+
+      const emptyInspectText = String(emptyInspectOutput.parts[0]?.text ?? '');
+      expect(emptyInspectText).toContain('# BRHP Inspect');
+      expect(emptyInspectText).toContain('No active BRHP planning session exists for this OpenCode chat.');
     } finally {
       if (originalConfigDirectory === undefined) {
         delete process.env.OPENCODE_CONFIG_DIR;
@@ -625,6 +665,32 @@ describe('createServerPluginHooks', () => {
       )
     ).resolves.toBeUndefined();
     expect(factoryCalls).toBe(2);
+  });
+
+  it('renders inspect diagnostics when runtime loading fails', async () => {
+    const hooks = await createServerPluginHooksWithRuntimeAccess(createPluginInput('/repo'), {
+      async withRuntime() {
+        throw new Error('open failed at /repo/.opencode/brhp/brhp.db');
+      },
+    });
+    const output = {
+      parts: [{ type: 'text', text: 'replace me' }],
+    };
+
+    await hooks['command.execute.before']?.(
+      {
+        command: 'brhp',
+        sessionID: 'chat-inspect-diagnostic',
+        arguments: 'inspect',
+      },
+      output as never
+    );
+
+    const text = String(output.parts[0]?.text ?? '');
+    expect(text).toContain('# BRHP Inspect');
+    expect(text).toContain('Planning session:\n- Unavailable: Unable to load BRHP planner runtime');
+    expect(text).toContain('- Planner runtime: Unable to load BRHP planner runtime');
+    expect(text).not.toContain('open failed');
   });
 
   it('closes the server runtime after each operation even when the operation fails', async () => {

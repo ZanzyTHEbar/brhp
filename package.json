@@ -21,11 +21,13 @@
   "exports": {
     ".": {
       "types": "./dist/src/index.d.ts",
-      "import": "./dist/src/index.js"
+      "import": "./dist/src/index.js",
+      "default": "./dist/src/index.js"
     },
     "./tui": {
       "types": "./dist/src/tui/index.d.ts",
-      "import": "./dist/tui/index.js"
+      "import": "./dist/tui/index.js",
+      "default": "./dist/tui/index.js"
     }
   },
   "files": [

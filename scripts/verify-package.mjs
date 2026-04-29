@@ -174,6 +174,11 @@ async function smokeTuiModule(module, worktreePath) {
   assert(events.includes('registerSlots'), 'tui plugin must register sidebar slots');
   assert(events.includes('registerCommand'), 'tui plugin must register commands');
   assert(typeof disposeHandler === 'function', 'tui plugin must register a dispose handler');
+
+  disposeHandler();
+
+  assert(events.includes('unregisterSlots'), 'tui plugin must unregister sidebar slots');
+  assert(events.includes('unregisterCommand'), 'tui plugin must unregister commands');
 }
 
 async function verifyPackedArtifact() {
@@ -237,6 +242,20 @@ if (!hooks.tool?.brhp_get_active_plan) throw new Error('server hooks missing brh
 if (!hooks.tool?.brhp_decompose_node) throw new Error('server hooks missing brhp_decompose_node');
 if (!hooks.tool?.brhp_validate_active_scope) throw new Error('server hooks missing brhp_validate_active_scope');
 
+const inspectOutput = { parts: [{ type: 'text', text: 'replace me' }] };
+await hooks['command.execute.before']?.(
+  {
+    command: 'brhp',
+    sessionID: 'package-smoke-session',
+    arguments: 'inspect',
+  },
+  inspectOutput
+);
+
+if (!String(inspectOutput.parts[0]?.text ?? '').includes('# BRHP Inspect')) {
+  throw new Error('server hooks missing inspect command response');
+}
+
 await tuiModule.tui({
   state: {
     path: {
@@ -269,6 +288,11 @@ await tuiModule.tui({
 if (!events.includes('registerSlots')) throw new Error('tui plugin did not register slots');
 if (!events.includes('registerCommand')) throw new Error('tui plugin did not register commands');
 if (typeof disposeHandler !== 'function') throw new Error('tui plugin did not register dispose handler');
+
+disposeHandler();
+
+if (!events.includes('unregisterSlots')) throw new Error('tui plugin did not unregister slots');
+if (!events.includes('unregisterCommand')) throw new Error('tui plugin did not unregister commands');
 `
     );
 

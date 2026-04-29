@@ -2,7 +2,8 @@ export type ParsedBrhpCommand =
   | { readonly kind: 'status' }
   | { readonly kind: 'plan'; readonly problemStatement: string }
   | { readonly kind: 'resume'; readonly sessionId: string }
-  | { readonly kind: 'history' };
+  | { readonly kind: 'history' }
+  | { readonly kind: 'inspect' };
 
 export type ParsedBrhpCommandResult =
   | { readonly ok: true; readonly command: ParsedBrhpCommand }
@@ -42,6 +43,10 @@ export function parseBrhpCommand(argumentsText: string): ParsedBrhpCommandResult
       return payload.length === 0
         ? { ok: true, command: { kind: 'history' } }
         : { ok: false, message: 'Usage: /brhp history' };
+    case 'inspect':
+      return payload.length === 0
+        ? { ok: true, command: { kind: 'inspect' } }
+        : { ok: false, message: 'Usage: /brhp inspect' };
   }
 
   return {
