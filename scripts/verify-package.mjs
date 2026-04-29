@@ -220,6 +220,21 @@ if (typeof serverModule?.server !== 'function') throw new Error('server export m
 if (tuiModule?.id !== 'brhp') throw new Error('tui export missing id');
 if (typeof tuiModule?.tui !== 'function') throw new Error('tui export missing tui function');
 
+const hooks = await serverModule.server({
+  client: {},
+  project: {},
+  directory: ${JSON.stringify(installRoot)},
+  worktree: ${JSON.stringify(installRoot)},
+  serverUrl: new URL('https://example.com'),
+  $: {},
+});
+
+if (typeof hooks.config !== 'function') throw new Error('server hooks missing config registration');
+if (typeof hooks['command.execute.before'] !== 'function') throw new Error('server hooks missing slash command handler');
+if (typeof hooks['experimental.chat.system.transform'] !== 'function') throw new Error('server hooks missing system prompt transform');
+if (!hooks.tool?.brhp_get_active_plan) throw new Error('server hooks missing brhp_get_active_plan');
+if (!hooks.tool?.brhp_decompose_node) throw new Error('server hooks missing brhp_decompose_node');
+
 await tuiModule.tui({
   state: {
     path: {

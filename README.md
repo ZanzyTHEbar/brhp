@@ -127,6 +127,8 @@ pnpm build
 pnpm verify:package
 ```
 
+`pnpm verify:package` uses Bun to run the verifier, `npm pack` to build the package artifact, and `npm install` inside a temporary project to smoke-test the installed package. It may need npm registry or cache access for dependency resolution.
+
 If you are working on the local planner schema:
 
 ```bash
