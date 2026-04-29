@@ -59,6 +59,7 @@ assert(
 );
 assert(hooks.tool?.brhp_get_active_plan, 'server hooks must expose brhp_get_active_plan');
 assert(hooks.tool?.brhp_decompose_node, 'server hooks must expose brhp_decompose_node');
+assert(hooks.tool?.brhp_validate_active_scope, 'server hooks must expose brhp_validate_active_scope');
 
 await verifyLocalFilePackageSpec();
 await verifyPackedArtifact();
@@ -234,6 +235,7 @@ if (typeof hooks['command.execute.before'] !== 'function') throw new Error('serv
 if (typeof hooks['experimental.chat.system.transform'] !== 'function') throw new Error('server hooks missing system prompt transform');
 if (!hooks.tool?.brhp_get_active_plan) throw new Error('server hooks missing brhp_get_active_plan');
 if (!hooks.tool?.brhp_decompose_node) throw new Error('server hooks missing brhp_decompose_node');
+if (!hooks.tool?.brhp_validate_active_scope) throw new Error('server hooks missing brhp_validate_active_scope');
 
 await tuiModule.tui({
   state: {
