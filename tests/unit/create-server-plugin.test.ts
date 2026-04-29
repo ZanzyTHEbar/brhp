@@ -346,6 +346,43 @@ describe('createServerPluginHooks', () => {
       expect(statusText).toContain('- Pressure:');
       expect(statusText).toContain('- Recent activity:');
       expect(statusText).toContain('Validation recorded: unsatisfied');
+
+      const historyOutput = {
+        parts: [{ type: 'text', text: 'replace me' }],
+      };
+
+      await hooks['command.execute.before']?.(
+        {
+          command: 'brhp',
+          sessionID: 'chat-b',
+          arguments: 'history',
+        },
+        historyOutput as never
+      );
+
+      const historyText = String(historyOutput.parts[0]?.text ?? '');
+      expect(historyText).toContain('# BRHP History');
+      expect(historyText).toContain(`Session: ${createdSessionId}`);
+      expect(historyText).toContain('showing up to 25');
+      expect(historyText).toContain('validation-recorded');
+      expect(historyText).toContain('node-decomposed');
+
+      const emptyHistoryOutput = {
+        parts: [{ type: 'text', text: 'replace me' }],
+      };
+
+      await hooks['command.execute.before']?.(
+        {
+          command: 'brhp',
+          sessionID: 'chat-empty',
+          arguments: 'history',
+        },
+        emptyHistoryOutput as never
+      );
+
+      const emptyHistoryText = String(emptyHistoryOutput.parts[0]?.text ?? '');
+      expect(emptyHistoryText).toContain('# BRHP History');
+      expect(emptyHistoryText).toContain('No active BRHP planning session exists for this OpenCode chat.');
     } finally {
       if (originalConfigDirectory === undefined) {
         delete process.env.OPENCODE_CONFIG_DIR;
@@ -363,6 +400,12 @@ describe('createServerPluginHooks', () => {
       async getActive() {
         return null;
       },
+      async getActiveSessionHistory() {
+        return {
+          active: false as const,
+          events: [] as const,
+        };
+      },
       async create() {
         throw new Error('not used');
       },
@@ -379,7 +422,7 @@ describe('createServerPluginHooks', () => {
     const hooks = await createServerPluginHooksWithRuntimeAccess(createPluginInput('/repo'), {
       async withRuntime(_sessionID, _worktreePath, execute) {
         getRuntimeCalls += 1;
-        return execute(runtime as never);
+        return execute(runtime satisfies PlannerRuntime as never);
       },
     });
 
@@ -430,6 +473,12 @@ describe('createServerPluginHooks', () => {
           async getActive() {
             return null;
           },
+          async getActiveSessionHistory() {
+            return {
+              active: false as const,
+              events: [] as const,
+            };
+          },
           async create() {
             throw new Error('not used');
           },
@@ -479,6 +528,12 @@ describe('createServerPluginHooks', () => {
           return await execute({
             async getActive() {
               return null;
+            },
+            async getActiveSessionHistory() {
+              return {
+                active: false as const,
+                events: [] as const,
+              };
             },
             async create() {
               throw new Error('mutation failed');
@@ -556,6 +611,12 @@ describe('createServerPluginHooks', () => {
             async getActive() {
               return null;
             },
+            async getActiveSessionHistory() {
+              return {
+                active: false as const,
+                events: [] as const,
+              };
+            },
             async create() {
               throw new Error('not used');
             },
@@ -611,6 +672,12 @@ describe('createServerPluginHooks', () => {
           return execute({
             async getActive() {
               return null;
+            },
+            async getActiveSessionHistory() {
+              return {
+                active: false as const,
+                events: [] as const,
+              };
             },
             async create() {
               throw new Error('not used');
@@ -679,6 +746,12 @@ describe('createServerPluginHooks', () => {
             return execute({
               async getActive() {
                 return null;
+              },
+              async getActiveSessionHistory() {
+                return {
+                  active: false as const,
+                  events: [] as const,
+                };
               },
               async create() {
                 throw new Error('not used');

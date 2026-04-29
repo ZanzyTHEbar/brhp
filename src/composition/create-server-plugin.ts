@@ -5,6 +5,7 @@ import { buildSlashCommandResponse } from '../application/use-cases/build-slash-
 import { buildSystemPromptSection } from '../application/use-cases/build-system-prompt-section.js';
 import type { PlannerRuntime } from '../application/services/planner-runtime.js';
 import type { PlannerRuntimeMutation } from '../application/services/planner-runtime.js';
+import { PLANNING_HISTORY_EVENTS_LIMIT } from '../domain/planning/planning-event.js';
 import { withPlannerRuntimeForWorktree } from './create-planner-runtime.js';
 import { createPlannerTools } from './create-planner-tools.js';
 import { createInstructionInventoryLoader } from './create-instruction-inventory-loader.js';
@@ -73,15 +74,7 @@ export async function createServerPluginHooksWithRuntimeAccess(
       if (commandInput.command !== BRHP_COMMAND_NAME) {
         return;
       }
-
-      const projectDirectory = await resolveProjectDirectory(commandInput.sessionID);
-      const inventory = await createInstructionInventoryLoader(projectDirectory)();
       const parsed = parseBrhpCommand(commandInput.arguments);
-      const context = {
-        worktreePath: projectDirectory,
-        opencodeSessionId: commandInput.sessionID,
-      };
-      let mutation: PlannerRuntimeMutation = { kind: 'none' };
 
       if (!parsed.ok) {
         output.parts.length = 0;
@@ -92,10 +85,53 @@ export async function createServerPluginHooksWithRuntimeAccess(
         return;
       }
 
+      const projectDirectory = await resolveProjectDirectory(commandInput.sessionID);
+      const context = {
+        worktreePath: projectDirectory,
+        opencodeSessionId: commandInput.sessionID,
+      };
+      let mutation: PlannerRuntimeMutation = { kind: 'none' };
+
       switch (parsed.command.kind) {
         case 'status':
           break;
+        case 'history': {
+          const history = await runtimeAccess.withRuntime(
+            commandInput.sessionID,
+            projectDirectory,
+            runtime => runtime.getActiveSessionHistory(context, PLANNING_HISTORY_EVENTS_LIMIT)
+          );
+
+          output.parts.length = 0;
+          output.parts.push({
+            type: 'text',
+            text: buildSlashCommandResponse(
+              {
+                directories: {
+                  global: 'n/a',
+                  project: projectDirectory,
+                },
+                instructions: [],
+                counts: {
+                  global: 0,
+                  project: 0,
+                  total: 0,
+                  skipped: 0,
+                },
+                skippedFiles: [],
+              },
+              {
+                history: {
+                  ...history,
+                  limit: PLANNING_HISTORY_EVENTS_LIMIT,
+                },
+              }
+            ),
+          } as (typeof output.parts)[number]);
+          return;
+        }
         case 'plan': {
+          const inventory = await createInstructionInventoryLoader(projectDirectory)();
           const { problemStatement } = parsed.command;
           mutation = await runtimeAccess.withRuntime(commandInput.sessionID, projectDirectory, runtime =>
             runtime.create(context, inventory, problemStatement)
@@ -110,6 +146,8 @@ export async function createServerPluginHooksWithRuntimeAccess(
           break;
         }
       }
+
+      const inventory = await createInstructionInventoryLoader(projectDirectory)();
 
       const activePlanningState = await runtimeAccess.withRuntime(
         commandInput.sessionID,

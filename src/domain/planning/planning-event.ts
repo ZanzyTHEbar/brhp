@@ -57,6 +57,7 @@ export const PLANNING_EVENT_TYPES = Object.freeze(
 export type PlanningEventType = keyof PlanningEventPayloadByType;
 
 export const RECENT_PLANNING_EVENTS_LIMIT = 10;
+export const PLANNING_HISTORY_EVENTS_LIMIT = 25;
 
 export interface PlanningEventBase<Type extends PlanningEventType> {
   readonly id: string;

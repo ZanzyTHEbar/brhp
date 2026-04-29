@@ -54,4 +54,5 @@ export interface PlanningSessionQueryPort {
   getActiveSession(context: PlanningSessionContext): Promise<PlanningState | null>;
   getSessionById(worktreePath: string, sessionId: string): Promise<PlanningState | null>;
   listSessions(worktreePath: string): Promise<readonly PlanningSession[]>;
+  listRecentEvents(sessionId: string, limit: number): Promise<readonly PlanningEvent[]>;
 }

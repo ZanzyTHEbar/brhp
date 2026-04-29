@@ -29,6 +29,7 @@ BRHP exists to make planning a first-class activity inside OpenCode. The goal is
 BRHP currently provides:
 
 - a `/brhp` slash command for inspecting, creating, and resuming planning sessions
+- a `/brhp history` view for deeper bounded recent planner history on the active session
 - a TUI sidebar for the current planning state
 - instruction loading from both user-level and project-level directories
 - local persistence so planning sessions survive across turns and restarts
@@ -69,6 +70,7 @@ Enable the TUI plugin:
 Common commands:
 
 - `/brhp` or `/brhp status` to inspect the active planning session
+- `/brhp history` to inspect the newest 25 planner events for the active session
 - `/brhp plan <problem statement>` to start a new planning session
 - `/brhp resume <session id>` to resume an existing session
 

@@ -10,7 +10,7 @@ describe('parseBrhpCommand', () => {
     });
   });
 
-  it('parses plan and resume subcommands', () => {
+  it('parses plan, resume, and history subcommands', () => {
     expect(parseBrhpCommand('plan formalize the planner')).toEqual({
       ok: true,
       command: {
@@ -26,6 +26,13 @@ describe('parseBrhpCommand', () => {
         sessionId: 'session-123',
       },
     });
+
+    expect(parseBrhpCommand('history')).toEqual({
+      ok: true,
+      command: {
+        kind: 'history',
+      },
+    });
   });
 
   it('rejects invalid invocations with user-facing messages', () => {
@@ -39,9 +46,14 @@ describe('parseBrhpCommand', () => {
       message: 'Usage: /brhp resume <session id>',
     });
 
+    expect(parseBrhpCommand('history later')).toEqual({
+      ok: false,
+      message: 'Usage: /brhp history',
+    });
+
     expect(parseBrhpCommand('unknown')).toEqual({
       ok: false,
-      message: "Unknown BRHP subcommand 'unknown'. Supported: status, plan, resume.",
+      message: "Unknown BRHP subcommand 'unknown'. Supported: status, plan, resume, history.",
     });
   });
 });

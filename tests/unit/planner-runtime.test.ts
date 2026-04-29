@@ -678,6 +678,16 @@ function createInMemoryStore() {
         .filter(state => state.session.worktreePath === worktreePath)
         .map(state => state.session);
     },
+    async listRecentEvents(sessionId: string, limit: number) {
+      const state = states.get(sessionId);
+      if (!state) {
+        return [];
+      }
+
+      return [...state.events]
+        .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt) || right.id.localeCompare(left.id))
+        .slice(0, limit);
+    },
     forceSessionStatus(sessionId: string, status: PlanningState['session']['status']) {
       const state = states.get(sessionId);
       if (!state) {

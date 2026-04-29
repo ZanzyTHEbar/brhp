@@ -424,6 +424,16 @@ export class LibsqlPlanningSessionStore
     return Promise.all(sessionRows.map(row => this.#hydratePlanningSession(row)));
   }
 
+  async listRecentEvents(sessionId: string, limit: number): Promise<readonly PlanningEvent[]> {
+    const queries = await this.#queryCatalogPromise;
+    const eventRows = await fetchPlannerQueryMany(this.#client, queries.ListRecentPlanningEventsBySession, {
+      session_id: sessionId,
+      limit_count: limit,
+    });
+
+    return eventRows.map(mapPlanningEventRow);
+  }
+
   async #hydratePlanningState(sessionRow: LibsqlQueryRow): Promise<PlanningState> {
     const queries = await this.#queryCatalogPromise;
     const session = await this.#hydratePlanningSession(sessionRow);

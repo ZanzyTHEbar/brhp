@@ -274,4 +274,130 @@ describe('buildSlashCommandResponse', () => {
       response.indexOf('Node decomposed into 1 children')
     );
   });
+
+  it('renders a dedicated history response with typed event details', () => {
+    const response = buildSlashCommandResponse(
+      {
+        directories: {
+          global: '/global/brhp/instructions',
+          project: '/repo/.opencode/brhp/instructions',
+        },
+        instructions: [],
+        counts: {
+          global: 0,
+          project: 0,
+          total: 0,
+          skipped: 0,
+        },
+        skippedFiles: [],
+      },
+      {
+        history: {
+          active: true,
+          sessionId: 'session-1',
+          limit: 25,
+          events: [
+            {
+              id: 'event-new',
+              sessionId: 'session-1',
+              scopeId: 'scope-1',
+              type: 'validation-recorded',
+              occurredAt: '2026-04-17T12:07:00.000Z',
+              payload: {
+                validationId: 'validation-1',
+                scopeId: 'scope-1',
+                satisfiable: false,
+                blockingFindings: 0,
+                pendingBlockingClauses: 1,
+                clauseCount: 2,
+              },
+            },
+            {
+              id: 'event-old',
+              sessionId: 'session-1',
+              nodeId: 'node-1',
+              type: 'node-decomposed',
+              occurredAt: '2026-04-17T12:06:00.000Z',
+              payload: {
+                childNodeIds: ['node-2', 'node-3'],
+                previousStatus: 'active',
+                nextStatus: 'decomposed',
+              },
+            },
+          ],
+        },
+      }
+    );
+
+    expect(response).toContain('# BRHP History');
+    expect(response).toContain('Session: session-1');
+    expect(response).toContain('Events: 2 (showing up to 25, newest first)');
+    expect(response).toContain(
+      '2026-04-17T12:07:00.000Z | validation-recorded | scope=scope-1 | satisfiable=false blocking=0 pending=1 clauses=2'
+    );
+    expect(response).toContain(
+      '2026-04-17T12:06:00.000Z | node-decomposed | node=node-1 | children=2 active->decomposed'
+    );
+    expect(response.indexOf('validation-recorded')).toBeLessThan(response.indexOf('node-decomposed'));
+  });
+
+  it('renders an explicit empty history response', () => {
+    const response = buildSlashCommandResponse(
+      {
+        directories: {
+          global: '/global/brhp/instructions',
+          project: '/repo/.opencode/brhp/instructions',
+        },
+        instructions: [],
+        counts: {
+          global: 0,
+          project: 0,
+          total: 0,
+          skipped: 0,
+        },
+        skippedFiles: [],
+      },
+      {
+        history: {
+          active: false,
+          limit: 25,
+          events: [],
+        },
+      }
+    );
+
+    expect(response).toContain('# BRHP History');
+    expect(response).toContain('No active BRHP planning session exists for this OpenCode chat.');
+  });
+
+  it('renders an explicit empty history for an active session with no events', () => {
+    const response = buildSlashCommandResponse(
+      {
+        directories: {
+          global: '/global/brhp/instructions',
+          project: '/repo/.opencode/brhp/instructions',
+        },
+        instructions: [],
+        counts: {
+          global: 0,
+          project: 0,
+          total: 0,
+          skipped: 0,
+        },
+        skippedFiles: [],
+      },
+      {
+        history: {
+          active: true,
+          sessionId: 'session-1',
+          limit: 25,
+          events: [],
+        },
+      }
+    );
+
+    expect(response).toContain('# BRHP History');
+    expect(response).toContain('Session: session-1');
+    expect(response).toContain('No planner history is available for the active session yet.');
+  });
 });

@@ -290,6 +290,12 @@ describe('LibsqlPlanningSessionStore', () => {
       expect(active?.recentEvents).toHaveLength(10);
       expect(active?.recentEvents?.[0]?.id).toBe('extra-event-11');
       expect(active?.recentEvents?.at(-1)?.id).toBe('extra-event-2');
+
+      const deeperHistory = await store.listRecentEvents(seed.session.id, 25);
+
+      expect(deeperHistory).toHaveLength(16);
+      expect(deeperHistory[0]?.id).toBe('extra-event-11');
+      expect(deeperHistory.at(-1)?.id).toBe(seed.events[0]?.id);
     } finally {
       database.close();
       await rm(worktreePath, { recursive: true, force: true });

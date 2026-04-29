@@ -14,6 +14,7 @@ import {
   type RecordActiveScopeValidationClauseInput,
 } from '../use-cases/record-active-scope-validation.js';
 import type { InstructionInventory } from '../../domain/instructions/instruction.js';
+import type { PlanningEvent } from '../../domain/planning/planning-event.js';
 import type { PlanningState } from '../../domain/planning/planning-session.js';
 
 export type PlannerRuntimeMutation =
@@ -35,6 +36,20 @@ export interface RecordActiveScopeValidationRequest {
 
 export interface PlannerRuntime {
   getActive(context: PlanningSessionContext): Promise<PlanningState | null>;
+  getActiveSessionHistory(
+    context: PlanningSessionContext,
+    limit: number
+  ): Promise<
+    | {
+        readonly active: false;
+        readonly events: readonly PlanningEvent[];
+      }
+    | {
+        readonly active: true;
+        readonly sessionId: string;
+        readonly events: readonly PlanningEvent[];
+      }
+  >;
   create(
     context: PlanningSessionContext,
     inventory: InstructionInventory,
@@ -64,6 +79,23 @@ export function createPlannerRuntime(input: CreatePlannerRuntimeInput): PlannerR
   return {
     async getActive(context) {
       return input.store.getActiveSession(context);
+    },
+
+    async getActiveSessionHistory(context, limit) {
+      const activeState = await input.store.getActiveSession(context);
+
+      if (!activeState) {
+        return {
+          active: false,
+          events: [],
+        };
+      }
+
+      return {
+        active: true,
+        sessionId: activeState.session.id,
+        events: await input.store.listRecentEvents(activeState.session.id, limit),
+      };
     },
 
     async create(context, inventory, problemStatement) {

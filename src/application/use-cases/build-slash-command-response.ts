@@ -6,14 +6,25 @@ import {
 import type { PlannerRuntimeMutation } from '../services/planner-runtime.js';
 import type { PlanningState } from '../../domain/planning/planning-session.js';
 import { buildPlanningSessionSummary } from './build-planning-session-summary.js';
+import { buildPlanningHistoryResponse } from './build-planning-history-response.js';
 
 export function buildSlashCommandResponse(
   inventory: InstructionInventory,
   options?: {
     readonly activePlanningState?: PlanningState | null;
     readonly mutation?: PlannerRuntimeMutation;
+    readonly history?: {
+      readonly active: boolean;
+      readonly sessionId?: string;
+      readonly limit: number;
+      readonly events: readonly import('../../domain/planning/planning-event.js').PlanningEvent[];
+    };
   }
 ): string {
+  if (options?.history !== undefined) {
+    return buildPlanningHistoryResponse(options.history);
+  }
+
   const commandName = `/${BRHP_COMMAND_NAME}`;
   const instructionLines =
     inventory.instructions.length > 0
