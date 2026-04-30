@@ -4,17 +4,16 @@
 
 This file is a curated engineering backlog, not a release promise. Deferred roadmap items below are intentionally out of current scope.
 
-1. Next active batch: launch publication and listings
-   - finish final package validation after launch-readiness and inspect/status diagnostics settle
+1. Externally owned batch: launch publication and listings
+   - tracked in saga task `36`, now owned by another agent as the source of truth
+   - finish final package validation for publication packaging
    - monitor and respond to official OpenCode ecosystem issue/PR feedback
    - monitor and respond to `awesome-opencode` listing PR feedback
    - submit BRHP to opencode.cafe through the authenticated browser form
    - publish `brhp` to npm after npm auth is available
    - smoke-test a clean npm install with OpenCode server and TUI plugin loading
 
-2. Next active batch: state-contract freeze / backlog checkpoint
-   - freeze the read-model and operator-surface contract after launch publication/listing work closes
-   - reconcile repo docs, Memory Bank, Linear, and saga against the stabilized contract
+2. No local BRHP kernel/operator batch is active until saga task `36` or launch/listing feedback creates a concrete follow-up.
 
 ## Landed foundation
 
@@ -36,15 +35,16 @@ This file is a curated engineering backlog, not a release promise. Deferred road
 - sidebar load diagnostics now distinguish BRHP instruction-load failures from planner-runtime failures
 - `/brhp status` now mirrors instruction-load vs planner-runtime diagnostics, preserves internal causes for future operator inspection, and keeps user-facing output stack-free
 - `/brhp inspect` now exposes bounded graph, frontier, validation, focus-node, edge, and recent-activity drill-down for the active session without widening planner tools
+- `docs/operator-contract.md` freezes the current read-model and operator-surface contract, including non-contract internals and promotion gates for deferred work
 - package readiness is hardened with server/TUI export verification, packed-artifact smoke tests, local `file://` install guidance, and prerelease npm-publish guardrails
 - official OpenCode ecosystem issue/PR and `awesome-opencode` listing PR are open; opencode.cafe and npm publication remain external/authenticated follow-ups
 
 ## Near-term promotion candidates
 
-These items can move forward once the active batches above are closed and the read-model/operator contract is stable.
+These items can move forward only after launch/listing work closes and the prerequisites in `docs/operator-contract.md` are satisfied.
 
 - graph visualization UI
-  - promote only after diagnostics parity and operator drill-down contracts settle
+  - promote only after diagnostics parity, operator drill-down, and read-model freeze settle
 - aggregated tool entries / multi-operation tool consolidation
   - promote only after planner mutation contracts stop moving and operator pain justifies consolidation
 - config DSL
@@ -66,10 +66,10 @@ These items remain intentionally out of scope until stronger orchestration, prov
 
 ## Guardrails
 
-- keep the planner tool surface narrow while state contracts are still evolving
+- keep the planner tool surface narrow unless `docs/operator-contract.md` promotion gates justify expansion
 - do not collapse the current tools into one aggregated mutation tool yet
 - do not start scheduler or agent-spawning work before stronger orchestration semantics exist beyond the current per-operation/TUI lifecycle model
 - do not start graph-heavy TUI work before planner state and policy provenance stop moving
-- do not promote near-term candidates before the current active batches plus diagnostics, operator drill-down, and state-contract freeze are complete
+- do not promote near-term candidates before launch/listing work closes and the operator-contract promotion gates are satisfied
 - do not expand product scope before package publication, listing submissions, and clean-install smoke tests are complete
 - do not promote multi-session editing before session selection, history, and conflict semantics are operator-visible and tested

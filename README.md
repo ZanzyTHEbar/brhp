@@ -100,6 +100,17 @@ Common commands:
 - `/brhp plan <problem statement>` to start a new planning session
 - `/brhp resume <session id>` to resume an existing session
 
+Operator read surfaces are intentionally bounded:
+
+| Surface | What it shows |
+| --- | --- |
+| `/brhp status` | Compact active-session summary, instruction inventory, skipped files, and stack-free diagnostics. |
+| `/brhp history` | Newest 25 planner events for the active session. |
+| `/brhp inspect` | Active graph/frontier/validation drill-down with bounded frontier selections, validation clauses, focus nodes, edges, and recent activity. |
+| TUI sidebar | Compact read-only active-session summary. |
+
+The exact Markdown output is for humans, not a machine-stable API. The stable contract is the command surface and the read-model concepts documented in [Operator contract](./docs/operator-contract.md).
+
 Example:
 
 ```text
@@ -111,6 +122,7 @@ Example:
 The README is meant to explain the project at a high level. If you want the internal design and formal model, start here:
 
 - [Architecture](./docs/architecture.md)
+- [Operator contract](./docs/operator-contract.md)
 - [Formal specification](./docs/formal-spec.md)
 
 ## Development

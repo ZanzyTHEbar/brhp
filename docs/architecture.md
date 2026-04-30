@@ -87,6 +87,22 @@ Current runtime behavior derived from that model:
 - decomposition invalidates convergence and returns the session to `exploring`
 - loaded instruction content currently seeds planner invariants; explicit policy-document provenance is formally deferred for BRHP v1
 
+## Planner read model and operator surfaces
+
+The authoritative runtime read model is the active `PlanningState` loaded for the current OpenCode chat and worktree. It contains session metadata, graph scopes/nodes/edges, the latest frontier snapshot, the latest validation snapshot, and bounded recent planner events.
+
+BRHP exposes that state through human-facing projections rather than treating the internal TypeScript model or SQLite schema as public API:
+
+| Surface | Projection |
+| --- | --- |
+| `/brhp status` | Compact active-session summary, instruction inventory, skipped files, and runtime diagnostics. |
+| `/brhp history` | Newest-first active-session event history, bounded to 25 planner events. |
+| `/brhp inspect` | Bounded graph, active-scope, frontier, validation, focus-node, edge, and recent-activity drill-down. |
+| TUI sidebar | Compact read-only summary for the current planning state. |
+| `brhp_get_active_plan` | Authoritative active-state read capability for planner agents; not a frozen JSON schema. |
+
+Planner-tool mutation remains limited to `brhp_decompose_node` and `brhp_validate_active_scope`. Slash-command mutation remains limited to `/brhp plan` and `/brhp resume`. The frozen operator boundary is documented in [operator-contract.md](./operator-contract.md).
+
 ### Entry modules
 
 - `src/index.ts`
@@ -106,9 +122,10 @@ Entrypoints are intentionally thin and use default exports only to match observe
 ## Slash command flow
 
 1. `config` registers the `brhp` command.
-2. `command.execute.before` parses `/brhp` into `status`, `plan`, or `resume`.
-3. The plugin opens planner runtime access for the operation and uses the local libsql store to load or mutate the active session for the current OpenCode chat.
-4. The plugin clears the output parts and writes a text response with planning state and instruction diagnostics.
+2. `command.execute.before` parses `/brhp` into `status`, `plan`, `resume`, `history`, or `inspect`.
+3. Read-only commands load the active planner state or event history and render bounded operator projections.
+4. Mutating slash commands open planner runtime access for the operation and use the local libsql store to create or resume state for the current OpenCode chat.
+5. The plugin clears the output parts and writes a text response with planning state, instruction details, and stack-free runtime diagnostics where supported.
 
 ## TUI flow
 

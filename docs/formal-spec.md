@@ -53,7 +53,7 @@ The runtime control state is:
 ```
 
 - `T_t` is temperature.
-- `p_t` is top-p. In the current foundation batch it is persisted as part of planner controls and will be wired into OpenCode `chat.params` in the runtime integration batch.
+- `p_t` is top-p. It is persisted as part of planner controls, but it is not currently exposed as an operator contract.
 - `D_min` and `D_max` bound recursion depth.
 - `D_t` is the active depth clamp derived from `T_t`.
 
@@ -181,6 +181,23 @@ CoverageClosed_t = (∃ c ∈ Φ_Q : c.kind = coverage ∧ c.blocking = true) �
 
 Leaf completion remains deferred because the current BRHP runtime has no authoritative completion mutation or tool.
 
+## Operator read projection
+
+Operator read surfaces expose read-only projections of `S_t`. They do not mutate `G_t`, `Θ_t`, `Π_t`, or `Σ_t`.
+
+The current projection is:
+
+```text
+R_t = (session, graph summary/detail, active scope, frontier snapshot, validation snapshot, recent events, diagnostics)
+```
+
+- `/brhp status` renders a compact projection with instruction and runtime diagnostics.
+- `/brhp history` renders bounded newest-first event history for the active session.
+- `/brhp inspect` renders bounded graph, active-scope, frontier, validation, focus-node, edge, and recent-activity detail.
+- The TUI sidebar renders a compact read-only active-session summary.
+
+The projection contract is documented in [operator-contract.md](./operator-contract.md). Exact Markdown formatting is not the formal API; the stable contract is the visible read-model concepts and bounded read behavior.
+
 ## Source-of-truth mapping
 
 These formulas map directly to code in:
@@ -192,6 +209,11 @@ These formulas map directly to code in:
 - `src/domain/planning/plan-edge.ts`
 - `src/domain/planning/frontier.ts`
 - `src/domain/planning/validation.ts`
+- `src/application/ports/planning-session-store-port.ts`
+- `src/application/use-cases/build-planning-session-summary.ts`
+- `src/application/use-cases/build-planning-history-response.ts`
+- `src/application/use-cases/build-planning-inspect-response.ts`
 - `src/application/use-cases/recompute-active-frontier.ts`
 - `src/application/use-cases/record-active-scope-validation.ts`
 - `src/application/use-cases/decompose-planning-node.ts`
+- `src/domain/sidebar/sidebar-model.ts`
