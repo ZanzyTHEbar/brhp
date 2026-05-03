@@ -40,6 +40,10 @@ export interface PlanningEventPayloadByType {
     readonly pendingBlockingClauses: number;
     readonly clauseCount: number;
   };
+  'leaf-completed': {
+    readonly nodeId: string;
+    readonly completionSummary: string;
+  };
 }
 
 export const PLANNING_EVENT_TYPES = Object.freeze(
@@ -51,6 +55,7 @@ export const PLANNING_EVENT_TYPES = Object.freeze(
     'edge-created': true,
     'frontier-snapshotted': true,
     'validation-recorded': true,
+    'leaf-completed': true,
   }) as (keyof PlanningEventPayloadByType)[]
 );
 

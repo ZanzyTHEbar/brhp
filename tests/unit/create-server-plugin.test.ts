@@ -29,6 +29,7 @@ describe('createServerPluginHooks', () => {
       'brhp_get_active_plan',
       'brhp_decompose_node',
       'brhp_validate_active_scope',
+      'brhp_complete_leaf',
     ]);
   });
 
@@ -139,6 +140,9 @@ describe('createServerPluginHooks', () => {
               throw new Error('not used');
             },
             async recordValidation() {
+              throw new Error('not used');
+            },
+            async completeLeafNode() {
               throw new Error('not used');
             },
           } as never);
@@ -337,8 +341,8 @@ describe('createServerPluginHooks', () => {
         } as never
       );
 
-      expect(readToolOutput).toContain(`"id": "${createdSessionId}"`);
-      const activePlan = JSON.parse(readToolOutput ?? '{}') as {
+      expect(String((typeof readToolOutput === 'string' ? readToolOutput : (readToolOutput as any)?.output ?? ''))).toContain(`"id": "${createdSessionId}"`);
+      const activePlan = JSON.parse(String(typeof readToolOutput === 'string' ? readToolOutput : (readToolOutput as any)?.output ?? '{}')) as {
         session?: { rootNodeId?: string };
       };
 
@@ -370,8 +374,8 @@ describe('createServerPluginHooks', () => {
         } as never
       );
 
-      expect(decomposeToolOutput).toContain('"kind": "decomposed"');
-      expect(decomposeToolOutput).toContain('Define graph tools');
+      expect(String(typeof decomposeToolOutput === 'string' ? decomposeToolOutput : (decomposeToolOutput as any)?.output ?? '')).toContain('"kind": "decomposed"');
+      expect(String(typeof decomposeToolOutput === 'string' ? decomposeToolOutput : (decomposeToolOutput as any)?.output ?? '')).toContain('Define graph tools');
 
       const validateToolOutput = await hooks.tool?.brhp_validate_active_scope?.execute(
         {
@@ -403,10 +407,10 @@ describe('createServerPluginHooks', () => {
         } as never
       );
 
-      expect(validateToolOutput).toContain('"kind": "validation-recorded"');
-      expect(validateToolOutput).toContain('"pendingBlockingClauses": 1');
-      expect(validateToolOutput).toContain('"validationPressure"');
-      expect(validateToolOutput).toContain('"status": "validating"');
+      expect(String(typeof validateToolOutput === 'string' ? validateToolOutput : (validateToolOutput as any)?.output ?? '')).toContain('"kind": "validation-recorded"');
+      expect(String(typeof validateToolOutput === 'string' ? validateToolOutput : (validateToolOutput as any)?.output ?? '')).toContain('"pendingBlockingClauses": 1');
+      expect(String(typeof validateToolOutput === 'string' ? validateToolOutput : (validateToolOutput as any)?.output ?? '')).toContain('"validationPressure"');
+      expect(String(typeof validateToolOutput === 'string' ? validateToolOutput : (validateToolOutput as any)?.output ?? '')).toContain('"status": "validating"');
 
       const validatedPlanOutput = await hooks.tool?.brhp_get_active_plan?.execute(
         {},
@@ -422,11 +426,11 @@ describe('createServerPluginHooks', () => {
         } as never
       );
 
-      expect(validatedPlanOutput).toContain('"validation"');
-      expect(validatedPlanOutput).toContain('"pendingBlockingClauses": 1');
-      expect(validatedPlanOutput).toContain('"frontier"');
-      expect(validatedPlanOutput).toContain('"validationPressure"');
-      expect(validatedPlanOutput).toContain('"recentEvents"');
+      expect(String(typeof validatedPlanOutput === 'string' ? validatedPlanOutput : (validatedPlanOutput as any)?.output ?? '')).toContain('"validation"');
+      expect(String(typeof validatedPlanOutput === 'string' ? validatedPlanOutput : (validatedPlanOutput as any)?.output ?? '')).toContain('"pendingBlockingClauses": 1');
+      expect(String(typeof validatedPlanOutput === 'string' ? validatedPlanOutput : (validatedPlanOutput as any)?.output ?? '')).toContain('"frontier"');
+      expect(String(typeof validatedPlanOutput === 'string' ? validatedPlanOutput : (validatedPlanOutput as any)?.output ?? '')).toContain('"validationPressure"');
+      expect(String(typeof validatedPlanOutput === 'string' ? validatedPlanOutput : (validatedPlanOutput as any)?.output ?? '')).toContain('"recentEvents"');
 
       const statusOutput = {
         parts: [{ type: 'text', text: 'replace me' }],
@@ -558,6 +562,9 @@ describe('createServerPluginHooks', () => {
       async recordValidation() {
         throw new Error('not used');
       },
+      async completeLeafNode() {
+        throw new Error('not used');
+      },
     };
     const hooks = await createServerPluginHooksWithRuntimeAccess(createPluginInput('/repo'), {
       async withRuntime(_sessionID, _worktreePath, execute) {
@@ -629,6 +636,9 @@ describe('createServerPluginHooks', () => {
             throw new Error('not used');
           },
           async recordValidation() {
+            throw new Error('not used');
+          },
+          async completeLeafNode() {
             throw new Error('not used');
           },
         } as never);
@@ -721,6 +731,9 @@ describe('createServerPluginHooks', () => {
             async recordValidation() {
               throw new Error('not used');
             },
+            async completeLeafNode() {
+              throw new Error('not used');
+            },
           } as never);
         } finally {
           events.push('close');
@@ -803,6 +816,9 @@ describe('createServerPluginHooks', () => {
             async recordValidation() {
               throw new Error('not used');
             },
+            async completeLeafNode() {
+              throw new Error('not used');
+            },
           } as never);
         },
       }
@@ -863,6 +879,9 @@ describe('createServerPluginHooks', () => {
               throw new Error('not used');
             },
             async recordValidation() {
+              throw new Error('not used');
+            },
+            async completeLeafNode() {
               throw new Error('not used');
             },
           } as never);
@@ -939,6 +958,9 @@ describe('createServerPluginHooks', () => {
               async recordValidation() {
                 throw new Error('not used');
               },
+              async completeLeafNode() {
+                throw new Error('not used');
+              },
             } as never);
           },
         }
@@ -990,6 +1012,9 @@ describe('createServerPluginHooks', () => {
             async recordValidation() {
               throw new Error('not used');
             },
+            async completeLeafNode() {
+              throw new Error('not used');
+            },
           } as never);
         },
       },
@@ -1033,5 +1058,6 @@ function createPluginInputBase(projectDirectory: string): PluginInput {
     worktree: projectDirectory,
     serverUrl: new URL('https://example.com'),
     $: {} as never,
+    experimental_workspace: { register() {} } as never,
   };
 }

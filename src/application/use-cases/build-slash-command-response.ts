@@ -148,6 +148,10 @@ function renderMutation(mutation: PlannerRuntimeMutation): string[] {
       return [
         `- Recorded validation ${mutation.validationId} for session ${mutation.state.session.id}`,
       ];
+    case 'leaf-completed':
+      return [
+        `- Completed leaf node ${mutation.nodeId} in session ${mutation.state.session.id}`,
+      ];
     case 'resume-not-found':
       return [`- Session ${mutation.sessionId} was not found in this worktree`];
   }

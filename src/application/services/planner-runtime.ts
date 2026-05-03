@@ -13,6 +13,7 @@ import {
   recordActiveScopeValidation,
   type RecordActiveScopeValidationClauseInput,
 } from '../use-cases/record-active-scope-validation.js';
+import { completeLeafNode } from '../use-cases/complete-leaf-node.js';
 import type { InstructionInventory } from '../../domain/instructions/instruction.js';
 import type { PlanningEvent } from '../../domain/planning/planning-event.js';
 import type { PlanningState } from '../../domain/planning/planning-session.js';
@@ -24,7 +25,8 @@ export type PlannerRuntimeMutation =
   | { readonly kind: 'resumed'; readonly state: PlanningState }
   | { readonly kind: 'resume-not-found'; readonly sessionId: string }
   | { readonly kind: 'decomposed'; readonly state: PlanningState; readonly nodeId: string }
-  | { readonly kind: 'validation-recorded'; readonly state: PlanningState; readonly validationId: string };
+  | { readonly kind: 'validation-recorded'; readonly state: PlanningState; readonly validationId: string }
+  | { readonly kind: 'leaf-completed'; readonly state: PlanningState; readonly nodeId: string };
 
 export interface DecomposePlanningNodeRequest {
   readonly nodeId: string;
@@ -67,6 +69,11 @@ export interface PlannerRuntime {
   recordValidation(
     context: PlanningSessionContext,
     request: RecordActiveScopeValidationRequest
+  ): Promise<PlannerRuntimeMutation>;
+  completeLeafNode(
+    context: PlanningSessionContext,
+    nodeId: string,
+    completionSummary: string
   ): Promise<PlannerRuntimeMutation>;
 }
 
@@ -209,6 +216,36 @@ export function createPlannerRuntime(input: CreatePlannerRuntimeInput): PlannerR
         kind: 'validation-recorded',
         state,
         validationId: patch.validation.id,
+      };
+    },
+
+    async completeLeafNode(context, nodeId, completionSummary) {
+      const activeState = await input.store.getActiveSession(context);
+
+      if (!activeState) {
+        throw new Error('No active BRHP planning session exists for this OpenCode chat');
+      }
+
+      const patch = completeLeafNode({
+        clock: input.clock,
+        ids: input.ids,
+        state: activeState,
+        nodeId,
+        completionSummary,
+      });
+
+      await input.store.applyLeafCompletion(patch);
+
+      const state = await input.store.getActiveSession(context);
+
+      if (!state) {
+        throw new Error('Leaf completion succeeded but the active session could not be reloaded');
+      }
+
+      return {
+        kind: 'leaf-completed',
+        state,
+        nodeId,
       };
     },
   };

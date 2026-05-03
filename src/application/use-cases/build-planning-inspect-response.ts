@@ -206,6 +206,8 @@ function summarizeEvent(event: PlanningEvent): string {
       return `reason=${event.payload.reason} entropy=${formatNumber(event.payload.globalEntropy)} depthClamp=${event.payload.depthClamp}`;
     case 'validation-recorded':
       return `satisfiable=${event.payload.satisfiable} blocking=${event.payload.blockingFindings} pending=${event.payload.pendingBlockingClauses} clauses=${event.payload.clauseCount}`;
+    case 'leaf-completed':
+      return `summary=${JSON.stringify(event.payload.completionSummary)}`;
   }
 }
 

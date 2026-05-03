@@ -134,5 +134,10 @@ function summarizePlanningEvent(event: PlanningEvent): PlanningActivitySummary {
         occurredAt: event.occurredAt,
         label: `Validation recorded: ${event.payload.satisfiable ? 'satisfiable' : 'unsatisfied'} (${event.payload.blockingFindings} blocking, ${event.payload.pendingBlockingClauses} pending)`,
       };
+    case 'leaf-completed':
+      return {
+        occurredAt: event.occurredAt,
+        label: `Leaf completed: ${event.payload.completionSummary}`,
+      };
   }
 }

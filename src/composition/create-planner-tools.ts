@@ -155,5 +155,39 @@ export function createPlannerTools(
         return JSON.stringify(mutation, null, 2);
       },
     }),
+    [BRHP_TOOL_IDS.completeLeaf]: tool({
+      description:
+        'Mark a leaf node in the active BRHP planning session as complete with a result summary. Read the active plan first.',
+      args: {
+        nodeId: tool.schema.string().min(1),
+        completionSummary: tool.schema.string().min(1),
+      },
+      async execute(args, context) {
+        const projectPath = await resolveProjectPath(context.sessionID, context);
+        context.metadata({
+          title: `Complete BRHP leaf node ${args.nodeId}`,
+          metadata: {
+            tool: BRHP_TOOL_IDS.completeLeaf,
+            nodeId: args.nodeId,
+          },
+        });
+
+        const mutation = await withRuntime(
+          context.sessionID,
+          projectPath,
+          runtime =>
+            runtime.completeLeafNode(
+              {
+                worktreePath: projectPath,
+                opencodeSessionId: context.sessionID,
+              },
+              args.nodeId,
+              args.completionSummary
+            )
+        );
+
+        return JSON.stringify(mutation, null, 2);
+      },
+    }),
   };
 }

@@ -60,6 +60,7 @@ assert(
 assert(hooks.tool?.brhp_get_active_plan, 'server hooks must expose brhp_get_active_plan');
 assert(hooks.tool?.brhp_decompose_node, 'server hooks must expose brhp_decompose_node');
 assert(hooks.tool?.brhp_validate_active_scope, 'server hooks must expose brhp_validate_active_scope');
+assert(hooks.tool?.brhp_complete_leaf, 'server hooks must expose brhp_complete_leaf');
 
 await verifyLocalFilePackageSpec();
 await verifyPackedArtifact();
@@ -241,6 +242,7 @@ if (typeof hooks['experimental.chat.system.transform'] !== 'function') throw new
 if (!hooks.tool?.brhp_get_active_plan) throw new Error('server hooks missing brhp_get_active_plan');
 if (!hooks.tool?.brhp_decompose_node) throw new Error('server hooks missing brhp_decompose_node');
 if (!hooks.tool?.brhp_validate_active_scope) throw new Error('server hooks missing brhp_validate_active_scope');
+          if (!hooks.tool?.brhp_complete_leaf) throw new Error('server hooks missing brhp_complete_leaf');
 
 const inspectOutput = { parts: [{ type: 'text', text: 'replace me' }] };
 await hooks['command.execute.before']?.(

@@ -640,6 +640,7 @@ function createInMemoryStore() {
         events: existing.events.concat(patch.events),
       });
     },
+    async applyLeafCompletion() { /* no-op */ },
     async getActiveSession(context: { worktreePath: string; opencodeSessionId: string }) {
       const activeId = activeByContext.get(contextKey(context.worktreePath, context.opencodeSessionId));
       const state = activeId ? states.get(activeId) : undefined;

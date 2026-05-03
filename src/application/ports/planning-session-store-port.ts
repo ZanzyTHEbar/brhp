@@ -43,11 +43,18 @@ export interface PlanningValidationRecordPatch {
   readonly events: readonly PlanningEvent[];
 }
 
+export interface PlanningLeafCompletionPatch {
+  readonly session: PlanningSession;
+  readonly previousSessionRevision: number;
+  readonly events: readonly PlanningEvent[];
+}
+
 export interface PlanningSessionStorePort {
   createSession(seed: PlanningSessionSeed): Promise<void>;
   activateSession(context: PlanningSessionContext, sessionId: string): Promise<boolean>;
   applyNodeDecomposition(patch: PlanningNodeDecompositionPatch): Promise<void>;
   applyValidationRecord(patch: PlanningValidationRecordPatch): Promise<void>;
+  applyLeafCompletion(patch: PlanningLeafCompletionPatch): Promise<void>;
 }
 
 export interface PlanningSessionQueryPort {

@@ -3,6 +3,7 @@ import type { Client } from '@libsql/client';
 import type {
   PlanningNodeDecompositionPatch,
   PlanningValidationRecordPatch,
+  PlanningLeafCompletionPatch,
   PlanningSessionContext,
   PlanningSessionQueryPort,
   PlanningSessionSeed,
@@ -366,6 +367,55 @@ export class LibsqlPlanningSessionStore
       if (updatedSessionRows !== 1) {
         throw new Error(
           `Planning session '${patch.session.id}' changed concurrently while recording validation`
+        );
+      }
+
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
+  async applyLeafCompletion(patch: PlanningLeafCompletionPatch): Promise<void> {
+    const queries = await this.#queryCatalogPromise;
+    const transaction = await this.#client.transaction('write');
+
+    try {
+      for (const event of patch.events) {
+        await executePlannerQuery(transaction, queries.CreatePlanningEvent, {
+          id: event.id,
+          session_id: event.sessionId,
+          scope_id: event.scopeId ?? null,
+          node_id: event.nodeId ?? null,
+          type: event.type,
+          payload_json: JSON.stringify(event.payload),
+          occurred_at: event.occurredAt,
+        });
+      }
+
+      const updatedSessionRows = await executePlannerQueryWithRowsAffected(
+        transaction,
+        queries.UpdatePlanningSessionSummary,
+        {
+          id: patch.session.id,
+          next_revision: patch.session.revision,
+          expected_revision: patch.previousSessionRevision,
+          status: patch.session.status,
+          global_entropy: patch.session.summary.globalEntropy,
+          entropy_drift: patch.session.summary.entropyDrift,
+          frontier_stability: patch.session.summary.frontierStability,
+          blocking_findings: patch.session.summary.blockingFindings,
+          pending_blocking_clauses: patch.session.summary.pendingBlockingClauses,
+          converged: patch.session.summary.converged ? 1 : 0,
+          last_frontier_updated_at: patch.session.summary.lastFrontierUpdatedAt,
+          updated_at: patch.session.updatedAt,
+        }
+      );
+
+      if (updatedSessionRows !== 1) {
+        throw new Error(
+          `Planning session '${patch.session.id}' changed concurrently while completing leaf node`
         );
       }
 

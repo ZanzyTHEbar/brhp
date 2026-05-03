@@ -5,12 +5,8 @@
 This file is a curated engineering backlog, not a release promise. Deferred roadmap items below are intentionally out of current scope.
 
 1. No active local implementation batch
-   - all near-term promotion candidates have been scoped:
-     - graph visualization → implemented (sidebar graph preview)
-     - aggregated tool entries → scoping concluded no implementation needed
-     - config DSL → implemented (temperature + maxDepth via .opencode/brhp/config.yaml)
-     - provider/model routing → scoping concluded deferred; BRHP has zero model/provider awareness
-     - multi-session concurrent editing → deferred until session selection, history, and conflict semantics are operator-visible and tested
+   - all near-term promotion candidates have been scoped and are either implemented or deferred
+   - `brhp_complete_leaf` tool landed as durable RLM foundation (leaf completion contract)
 
 2. Passive external follow-ups
    - official OpenCode PR `anomalyco/opencode#25109` and `awesome-opencode#327` only need action if reviewer feedback arrives
@@ -27,6 +23,7 @@ This file is a curated engineering backlog, not a release promise. Deferred road
   - `brhp_get_active_plan`
   - `brhp_decompose_node`
   - `brhp_validate_active_scope`
+  - `brhp_complete_leaf`
 - deterministic validation snapshot persistence
 - frontier recomputation and validation-aware selection pressure
 - runtime convergence derived from current planner state plus explicit decomposition evidence and passed blocking coverage closure
@@ -65,6 +62,7 @@ These items remain intentionally out of scope until stronger orchestration, prov
 ## Guardrails
 
 - keep the planner tool surface narrow unless `docs/operator-contract.md` promotion gates justify expansion
+- `brhp_complete_leaf` is the durable leaf-completion contract; actual RLM agent-spawning remains deferred until the OpenCode SDK adds agent hooks
 - do not collapse the current tools into one aggregated mutation tool yet
 - do not start scheduler or agent-spawning work before stronger orchestration semantics exist beyond the current per-operation/TUI lifecycle model
 - keep the graph visualization slice read-only and bounded to the operator-contract concepts before considering graph-heavy TUI work
