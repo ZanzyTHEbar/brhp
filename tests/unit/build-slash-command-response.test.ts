@@ -435,4 +435,124 @@ describe('buildSlashCommandResponse', () => {
     expect(response).toContain('Session: session-1');
     expect(response).toContain('No planner history is available for the active session yet.');
   });
+
+  it('renders planner config when temperature or maxDepth are set', () => {
+    const response = buildSlashCommandResponse(
+      {
+        directories: {
+          global: '/global/brhp/instructions',
+          project: '/repo/.opencode/brhp/instructions',
+        },
+        instructions: [],
+        counts: {
+          global: 0,
+          project: 0,
+          total: 0,
+          skipped: 0,
+        },
+        skippedFiles: [],
+      },
+      {
+        config: { temperature: 0.3, maxDepth: 4 },
+      }
+    );
+
+    expect(response).toContain('Planner config:');
+    expect(response).toContain('- Temperature: 0.300');
+    expect(response).toContain('- Max depth: 4');
+  });
+
+  it('does not render planner config when config is empty', () => {
+    const response = buildSlashCommandResponse(
+      {
+        directories: {
+          global: '/global/brhp/instructions',
+          project: '/repo/.opencode/brhp/instructions',
+        },
+        instructions: [],
+        counts: {
+          global: 0,
+          project: 0,
+          total: 0,
+          skipped: 0,
+        },
+        skippedFiles: [],
+      },
+      {
+        config: {},
+      }
+    );
+
+    expect(response).not.toContain('Planner config:');
+  });
+
+  it('renders config alongside active planning session summary', () => {
+    const response = buildSlashCommandResponse(
+      {
+        directories: {
+          global: '/global/brhp/instructions',
+          project: '/repo/.opencode/brhp/instructions',
+        },
+        instructions: [],
+        counts: {
+          global: 0,
+          project: 0,
+          total: 0,
+          skipped: 0,
+        },
+        skippedFiles: [],
+      },
+      {
+        config: { maxDepth: 3 },
+        activePlanningState: {
+          session: {
+            id: 's-1',
+            worktreePath: '/repo',
+            opencodeSessionId: 'c-1',
+            initialProblem: 'Test',
+            status: 'validating',
+            activeScopeId: 'scope-1',
+            rootNodeId: 'node-1',
+            revision: 1,
+            controls: {
+              temperature: 0.35,
+              topP: 0.9,
+              temperatureFloor: 0.1,
+              temperatureCeiling: 1,
+              minDepthClamp: 1,
+              maxDepthClamp: 5,
+              depthClamp: 4,
+            },
+            policy: {
+              policyDocumentIds: [],
+              instructionDocumentIds: [],
+              invariants: [],
+            },
+            summary: {
+              globalEntropy: 0.3,
+              entropyDrift: 0.01,
+              frontierStability: 0.95,
+              blockingFindings: 0,
+              pendingBlockingClauses: 0,
+              converged: false,
+              lastFrontierUpdatedAt: '2026-01-01T00:00:00.000Z',
+            },
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+          graph: {
+            scopes: [],
+            nodes: [],
+            edges: [],
+          },
+        },
+      }
+    );
+
+    expect(response).toContain('Planner config:');
+    expect(response).toContain('- Max depth: 3');
+    expect(response).not.toContain('Temperature');
+    expect(response).toContain('Planning session:');
+    expect(response).toContain('- Active: s-1');
+  });
 });

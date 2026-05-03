@@ -24,6 +24,8 @@ import {
   BRHP_COMMAND_DESCRIPTION,
   BRHP_COMMAND_NAME,
 } from '../domain/slash-command/brhp-command.js';
+import { loadPlannerConfig } from '../application/use-cases/load-planner-config.js';
+import type { PlannerConfig } from '../domain/planning/planner-config.js';
 
 export interface ServerPlannerRuntimeAccess {
   withRuntime<Result>(
@@ -36,16 +38,19 @@ export interface ServerPlannerRuntimeAccess {
 export async function createServerPluginHooks(
   input: PluginInput
 ): Promise<Hooks> {
+  const config = await loadConfig(input);
+
   return createServerPluginHooksWithRuntimeAccess(input, {
     async withRuntime(_sessionID, worktreePath, execute) {
-      return withPlannerRuntimeForWorktree(worktreePath, execute);
+      return withPlannerRuntimeForWorktree(worktreePath, execute, config);
     },
-  });
+  }, config);
 }
 
 export async function createServerPluginHooksWithRuntimeAccess(
   input: PluginInput,
-  runtimeAccess: ServerPlannerRuntimeAccess
+  runtimeAccess: ServerPlannerRuntimeAccess,
+  config?: PlannerConfig
 ): Promise<Hooks> {
   const resolveProjectDirectory = async (
     sessionID: string,
@@ -107,6 +112,7 @@ export async function createServerPluginHooksWithRuntimeAccess(
             sessionID: commandInput.sessionID,
             projectDirectory,
             context,
+            ...(config ? { config } : {}),
           });
           return;
         case 'history': {
@@ -210,11 +216,22 @@ export async function createServerPluginHooksWithRuntimeAccess(
   };
 }
 
+async function loadConfig(input: PluginInput): Promise<PlannerConfig> {
+  try {
+    const projectDirectory = await resolveServerProjectWorktreePathWithoutSession(input);
+
+    return await loadPlannerConfig(projectDirectory);
+  } catch {
+    return {};
+  }
+}
+
 async function renderStatusResponse(input: {
   readonly output: Parameters<NonNullable<Hooks['command.execute.before']>>[1];
   readonly runtimeAccess: ServerPlannerRuntimeAccess;
   readonly sessionID: string;
   readonly projectDirectory: string;
+  readonly config?: PlannerConfig;
   readonly context: {
     readonly worktreePath: string;
     readonly opencodeSessionId: string;
@@ -249,6 +266,7 @@ async function renderStatusResponse(input: {
       activePlanningState,
       mutation: { kind: 'none' },
       diagnostics,
+      ...(input.config ? { config: input.config } : {}),
     }),
   } as (typeof input.output.parts)[number]);
 }

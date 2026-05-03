@@ -965,6 +965,54 @@ describe('createServerPluginHooks', () => {
       await rm(tempRoot, { recursive: true, force: true });
     }
   });
+
+  it('renders planner config in status response when configured', async () => {
+    const hooks = await createServerPluginHooksWithRuntimeAccess(
+      createPluginInput('/repo'),
+      {
+        async withRuntime(_sessionID, _worktreePath, execute) {
+          return execute({
+            async getActive() {
+              return null;
+            },
+            async getActiveSessionHistory() {
+              return { active: false, events: [] };
+            },
+            async create() {
+              throw new Error('not used');
+            },
+            async resume() {
+              throw new Error('not used');
+            },
+            async decomposeNode() {
+              throw new Error('not used');
+            },
+            async recordValidation() {
+              throw new Error('not used');
+            },
+          } as never);
+        },
+      },
+      { temperature: 0.42, maxDepth: 3 }
+    );
+    const output = {
+      parts: [{ type: 'text', text: 'replace me' }],
+    };
+
+    await hooks['command.execute.before']?.(
+      {
+        command: 'brhp',
+        sessionID: 'chat-config-status',
+        arguments: '',
+      },
+      output as never
+    );
+
+    const text = String(output.parts[0]?.text ?? '');
+    expect(text).toContain('Planner config:');
+    expect(text).toContain('- Temperature: 0.420');
+    expect(text).toContain('- Max depth: 3');
+  });
 });
 
 function createPluginInput(

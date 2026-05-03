@@ -8,6 +8,7 @@ import type { PlanningState } from '../../domain/planning/planning-session.js';
 import type { BrhpRuntimeDiagnostic } from './classify-runtime-diagnostic.js';
 import { buildPlanningSessionSummary } from './build-planning-session-summary.js';
 import { buildPlanningHistoryResponse } from './build-planning-history-response.js';
+import type { PlannerConfig } from '../../domain/planning/planner-config.js';
 
 export function buildSlashCommandResponse(
   inventory: InstructionInventory,
@@ -15,6 +16,7 @@ export function buildSlashCommandResponse(
     readonly activePlanningState?: PlanningState | null;
     readonly mutation?: PlannerRuntimeMutation;
     readonly diagnostics?: readonly BrhpRuntimeDiagnostic[];
+    readonly config?: PlannerConfig;
     readonly history?: {
       readonly active: boolean;
       readonly sessionId?: string;
@@ -90,6 +92,14 @@ export function buildSlashCommandResponse(
         : ['- None active for this OpenCode session']),
     ...(diagnosticLines.length > 0 ? ['', 'Runtime diagnostics:', ...diagnosticLines] : []),
     ...(mutationLines.length > 0 ? ['', 'Last action:', ...mutationLines] : []),
+    ...(options?.config !== undefined && (options.config.temperature !== undefined || options.config.maxDepth !== undefined)
+      ? [
+          '',
+          'Planner config:',
+          ...(options.config.temperature !== undefined ? [`- Temperature: ${options.config.temperature.toFixed(3)}`] : []),
+          ...(options.config.maxDepth !== undefined ? [`- Max depth: ${options.config.maxDepth}`] : []),
+        ]
+      : []),
     '',
     'Instruction directories:',
     `- Global: ${inventory.directories.global}`,

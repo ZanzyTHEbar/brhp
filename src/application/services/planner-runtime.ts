@@ -16,6 +16,7 @@ import {
 import type { InstructionInventory } from '../../domain/instructions/instruction.js';
 import type { PlanningEvent } from '../../domain/planning/planning-event.js';
 import type { PlanningState } from '../../domain/planning/planning-session.js';
+import type { PlannerConfig } from '../../domain/planning/planner-config.js';
 
 export type PlannerRuntimeMutation =
   | { readonly kind: 'none' }
@@ -73,6 +74,7 @@ export interface CreatePlannerRuntimeInput {
   readonly clock: ClockPort;
   readonly ids: IdGeneratorPort;
   readonly store: PlanningSessionStorePort & PlanningSessionQueryPort;
+  readonly config?: PlannerConfig;
 }
 
 export function createPlannerRuntime(input: CreatePlannerRuntimeInput): PlannerRuntime {
@@ -105,6 +107,12 @@ export function createPlannerRuntime(input: CreatePlannerRuntimeInput): PlannerR
         worktreePath: context.worktreePath,
         opencodeSessionId: context.opencodeSessionId,
         problemStatement,
+        ...(input.config?.temperature !== undefined
+          ? { temperature: input.config.temperature }
+          : {}),
+        ...(input.config?.maxDepth !== undefined
+          ? { maxDepthClamp: input.config.maxDepth }
+          : {}),
         instructionDocumentIds: inventory.instructions.map(instruction => instruction.id),
         invariants: inventory.instructions.flatMap(extractInstructionInvariants),
       });
