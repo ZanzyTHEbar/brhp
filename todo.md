@@ -4,11 +4,13 @@
 
 This file is a curated engineering backlog, not a release promise. Deferred roadmap items below are intentionally out of current scope.
 
-1. Active local batch: provider/model routing scoping
-   - tracked in saga task `67`
-   - inspect current provider resolution and whether runtime diagnostics expose enough signal for routing
-   - define minimal bounded routing surface (provider preference, model preference)
-   - stop with no implementation if the current single-provider surface is sufficient
+1. No active local implementation batch
+   - all near-term promotion candidates have been scoped:
+     - graph visualization → implemented (sidebar graph preview)
+     - aggregated tool entries → scoping concluded no implementation needed
+     - config DSL → implemented (temperature + maxDepth via .opencode/brhp/config.yaml)
+     - provider/model routing → scoping concluded deferred; BRHP has zero model/provider awareness
+     - multi-session concurrent editing → deferred until session selection, history, and conflict semantics are operator-visible and tested
 
 2. Passive external follow-ups
    - official OpenCode PR `anomalyco/opencode#25109` and `awesome-opencode#327` only need action if reviewer feedback arrives
@@ -43,13 +45,12 @@ This file is a curated engineering backlog, not a release promise. Deferred road
 
 ## Near-term promotion candidates
 
-These items can move forward only after the state-contract checkpoint closes and the prerequisites in `docs/operator-contract.md` are satisfied.
+All near-term candidates have been scoped. Remaining items are deferred until prerequisites are met.
 
-- config DSL
-  - minimal config DSL landed: temperature + maxDepth via .opencode/brhp/config.yaml; /brhp status displays effective config
-- provider/model routing (now active local batch in saga task `67`)
+- provider/model routing
+  - scoping concluded deferred; BRHP has zero model/provider awareness; requires `chat.params`/`chat.headers` hooks, model diagnostics, and config expansion
 - multi-session concurrent editing
-  - promote only after session ownership, conflict-resolution, and operator drill-down/session-selection contracts are explicit
+  - deferred until session selection, session listing, revision/conflict semantics, stale mutation handling, and operator-visible conflict diagnostics are explicit and tested
 
 ## Deferred advanced roadmap
 
