@@ -4,11 +4,11 @@
 
 This file is a curated engineering backlog, not a release promise. Deferred roadmap items below are intentionally out of current scope.
 
-1. Active local batch: aggregated tool entries / multi-operation consolidation scoping
-   - tracked in saga task `58`
-   - inspect existing planner tools and operator/model pain before proposing any surface change
-   - keep the planner tool surface narrow unless `docs/operator-contract.md` promotion gates justify expansion
-   - define non-goals first; no implementation until the scope is justified and bounded
+1. Active local batch: config DSL scoping
+   - tracked in saga task `61`
+   - inspect current configuration surfaces and operator/runtime preferences that need config
+   - define a minimal bounded config surface (e.g., safe operator preferences, runtime controls)
+   - stop with no implementation if the current zero-config surface is sufficient
 
 2. Passive external follow-ups
    - official OpenCode PR `anomalyco/opencode#25109` and `awesome-opencode#327` only need action if reviewer feedback arrives
