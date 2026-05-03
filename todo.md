@@ -4,11 +4,11 @@
 
 This file is a curated engineering backlog, not a release promise. Deferred roadmap items below are intentionally out of current scope.
 
-1. Active local batch: config DSL scoping
-   - tracked in saga task `61`
-   - inspect current configuration surfaces and operator/runtime preferences that need config
-   - define a minimal bounded config surface (e.g., safe operator preferences, runtime controls)
-   - stop with no implementation if the current zero-config surface is sufficient
+1. Active local batch: provider/model routing scoping
+   - tracked in saga task `67`
+   - inspect current provider resolution and whether runtime diagnostics expose enough signal for routing
+   - define minimal bounded routing surface (provider preference, model preference)
+   - stop with no implementation if the current single-provider surface is sufficient
 
 2. Passive external follow-ups
    - official OpenCode PR `anomalyco/opencode#25109` and `awesome-opencode#327` only need action if reviewer feedback arrives
@@ -46,9 +46,8 @@ This file is a curated engineering backlog, not a release promise. Deferred road
 These items can move forward only after the state-contract checkpoint closes and the prerequisites in `docs/operator-contract.md` are satisfied.
 
 - config DSL
-  - promote only after diagnostics/history/provenance surfaces stabilize into a real configuration contract
-- provider/model routing
-  - promote only after config DSL exists and runtime diagnostics provide enough signal to justify routing
+  - minimal config DSL landed: temperature + maxDepth via .opencode/brhp/config.yaml; /brhp status displays effective config
+- provider/model routing (now active local batch in saga task `67`)
 - multi-session concurrent editing
   - promote only after session ownership, conflict-resolution, and operator drill-down/session-selection contracts are explicit
 
