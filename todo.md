@@ -4,11 +4,11 @@
 
 This file is a curated engineering backlog, not a release promise. Deferred roadmap items below are intentionally out of current scope.
 
-1. Active local batch: read-only graph visualization UI scoping
-   - tracked in saga task `40`
-   - first slice must mirror `/brhp inspect` concepts: scopes, nodes, edges, frontier overlays, validation overlays, and diagnostics
-   - keep the UI read-only; do not add route-heavy navigation, planner mutations, or new planner tools
-   - first sidebar graph preview slice is in review/validation; finish hardening before checkpointing
+1. Active local batch: aggregated tool entries / multi-operation consolidation scoping
+   - tracked in saga task `58`
+   - inspect existing planner tools and operator/model pain before proposing any surface change
+   - keep the planner tool surface narrow unless `docs/operator-contract.md` promotion gates justify expansion
+   - define non-goals first; no implementation until the scope is justified and bounded
 
 2. Passive external follow-ups
    - official OpenCode PR `anomalyco/opencode#25109` and `awesome-opencode#327` only need action if reviewer feedback arrives
@@ -35,6 +35,7 @@ This file is a curated engineering backlog, not a release promise. Deferred road
 - sidebar load diagnostics now distinguish BRHP instruction-load failures from planner-runtime failures
 - `/brhp status` now mirrors instruction-load vs planner-runtime diagnostics, preserves internal causes for future operator inspection, and keeps user-facing output stack-free
 - `/brhp inspect` now exposes bounded graph, frontier, validation, focus-node, edge, and recent-activity drill-down for the active session without widening planner tools
+- sidebar graph preview now exposes bounded active-scope, focus-node, edge, frontier, and validation-clause detail without route-heavy TUI navigation or planner tool expansion
 - `docs/operator-contract.md` freezes the current read-model and operator-surface contract, including non-contract internals and promotion gates for deferred work
 - state-contract freeze / backlog checkpoint completed after launch publication was deferred or handed off
 - package readiness is hardened with server/TUI export verification, packed-artifact smoke tests, local `file://` install guidance, and prerelease npm-publish guardrails
@@ -44,8 +45,6 @@ This file is a curated engineering backlog, not a release promise. Deferred road
 
 These items can move forward only after the state-contract checkpoint closes and the prerequisites in `docs/operator-contract.md` are satisfied.
 
-- aggregated tool entries / multi-operation tool consolidation
-  - promote only after planner mutation contracts stop moving and operator pain justifies consolidation
 - config DSL
   - promote only after diagnostics/history/provenance surfaces stabilize into a real configuration contract
 - provider/model routing
