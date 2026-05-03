@@ -1,5 +1,9 @@
 import type { InstructionSource } from '../instructions/instruction.js';
+import type { PlanEdgeKind } from '../planning/plan-edge.js';
+import type { PlanNodeCategory, PlanNodeStatus } from '../planning/plan-node.js';
+import type { PlanningScopeStatus } from '../planning/planning-scope.js';
 import type { PlanningSessionStatus } from '../planning/planning-session.js';
+import type { ValidationClauseKind, ValidationClauseStatus } from '../planning/validation.js';
 
 export interface SidebarInstructionItem {
   readonly title: string;
@@ -38,6 +42,7 @@ export interface SidebarPlanningSummary {
   readonly validation?: SidebarValidationSummary;
   readonly frontier?: SidebarFrontierSummary;
   readonly recentActivity?: readonly SidebarPlanningActivityItem[];
+  readonly graphPreview?: SidebarGraphPreview;
 }
 
 export interface SidebarValidationSummary {
@@ -62,4 +67,56 @@ export interface SidebarFrontierSummary {
 export interface SidebarPlanningActivityItem {
   readonly occurredAt: string;
   readonly label: string;
+}
+
+export interface SidebarGraphPreview {
+  readonly activeScope?: SidebarGraphScopePreview;
+  readonly focusNodes: readonly SidebarGraphNodePreview[];
+  readonly edges: readonly SidebarGraphEdgePreview[];
+  readonly frontierSelections: readonly SidebarGraphFrontierSelectionPreview[];
+  readonly validationClauses: readonly SidebarGraphValidationClausePreview[];
+}
+
+export interface SidebarGraphScopePreview {
+  readonly id: string;
+  readonly title: string;
+  readonly question: string;
+  readonly status: PlanningScopeStatus;
+  readonly depth: number;
+  readonly rootNodeId: string;
+  readonly rootNodeTitle?: string;
+}
+
+export interface SidebarGraphNodePreview {
+  readonly id: string;
+  readonly title: string;
+  readonly status: PlanNodeStatus;
+  readonly category: PlanNodeCategory;
+  readonly depth: number;
+  readonly validationPressure: number;
+}
+
+export interface SidebarGraphEdgePreview {
+  readonly id: string;
+  readonly kind: PlanEdgeKind;
+  readonly fromNodeId: string;
+  readonly fromNodeTitle?: string;
+  readonly toNodeId: string;
+  readonly toNodeTitle?: string;
+}
+
+export interface SidebarGraphFrontierSelectionPreview {
+  readonly rank: number;
+  readonly nodeId: string;
+  readonly nodeTitle?: string;
+  readonly probability: number;
+  readonly validationPressure: number;
+}
+
+export interface SidebarGraphValidationClausePreview {
+  readonly id: string;
+  readonly kind: ValidationClauseKind;
+  readonly status: ValidationClauseStatus;
+  readonly blocking: boolean;
+  readonly description: string;
 }

@@ -6,7 +6,7 @@ import type {
   SidebarLoadFailure,
   SidebarLoadResult,
 } from '../../application/use-cases/load-sidebar-model.js';
-import type { SidebarModel } from '../../domain/sidebar/sidebar-model.js';
+import type { SidebarGraphPreview, SidebarModel } from '../../domain/sidebar/sidebar-model.js';
 import { subscribeToSidebarRefresh } from '../state/sidebar-refresh.js';
 
 interface SidebarContentProps {
@@ -17,6 +17,13 @@ interface SidebarContentProps {
 }
 
 type LoadState = 'loading' | 'ready' | 'error';
+
+const EMPTY_GRAPH_PREVIEW: SidebarGraphPreview = {
+  focusNodes: [],
+  edges: [],
+  frontierSelections: [],
+  validationClauses: [],
+};
 
 export function SidebarContent(props: SidebarContentProps) {
   const [state, setState] = createSignal<LoadState>('loading');
@@ -150,6 +157,12 @@ export function SidebarContent(props: SidebarContentProps) {
                         </For>
                       </box>
                     </Show>
+                    <Show when={currentModel.planning?.graphPreview}>
+                      <SidebarGraphPreviewContent
+                        colors={colors()}
+                        graphPreview={currentModel.planning?.graphPreview ?? EMPTY_GRAPH_PREVIEW}
+                      />
+                    </Show>
                   </box>
                 </Show>
 
@@ -188,6 +201,78 @@ export function SidebarContent(props: SidebarContentProps) {
             );
           })()}
         </>
+      </Show>
+    </box>
+  );
+}
+
+export function SidebarGraphPreviewContent(props: {
+  readonly colors: TuiTheme['current'];
+  readonly graphPreview: SidebarGraphPreview;
+}) {
+  return (
+    <box flexDirection="column">
+      <text fg={props.colors.textMuted}>Graph preview:</text>
+      <Show when={props.graphPreview.activeScope}>
+        <box flexDirection="column">
+          <text fg={props.colors.textMuted}>
+            Scope: {props.graphPreview.activeScope?.title} ({props.graphPreview.activeScope?.status}, depth {props.graphPreview.activeScope?.depth})
+          </text>
+          <text fg={props.colors.textMuted}>
+            Root: {props.graphPreview.activeScope?.rootNodeTitle ?? props.graphPreview.activeScope?.rootNodeId}
+          </text>
+        </box>
+      </Show>
+      <Show when={props.graphPreview.frontierSelections.length > 0}>
+        <box flexDirection="column">
+          <text fg={props.colors.textMuted}>Frontier:</text>
+          <For each={props.graphPreview.frontierSelections}>
+            {selection => (
+              <text fg={props.colors.textMuted}>
+                • #{selection.rank} {selection.nodeTitle ?? selection.nodeId} p={selection.probability.toFixed(3)} pressure={selection.validationPressure.toFixed(3)}
+              </text>
+            )}
+          </For>
+        </box>
+      </Show>
+      <Show when={props.graphPreview.focusNodes.length > 0}>
+        <box flexDirection="column">
+          <text fg={props.colors.textMuted}>Focus nodes:</text>
+          <For each={props.graphPreview.focusNodes}>
+            {node => (
+              <text fg={props.colors.textMuted}>
+                • [{node.status}] {node.title} d={node.depth} pressure={node.validationPressure.toFixed(3)}
+              </text>
+            )}
+          </For>
+        </box>
+      </Show>
+      <Show when={props.graphPreview.validationClauses.length > 0}>
+        <box flexDirection="column">
+          <text fg={props.colors.textMuted}>Validation clauses:</text>
+          <For each={props.graphPreview.validationClauses}>
+            {clause => (
+              <text fg={props.colors.textMuted}>
+                • [{clause.status}] {clause.kind}{clause.blocking ? ' blocking' : ''}: {clause.description}
+              </text>
+            )}
+          </For>
+        </box>
+      </Show>
+      <Show when={props.graphPreview.edges.length > 0}>
+        <box flexDirection="column">
+          <text fg={props.colors.textMuted}>Edges:</text>
+          <For each={props.graphPreview.edges}>
+            {edge => (
+              <box flexDirection="column">
+                <text fg={props.colors.textMuted}>
+                  • {edge.kind}: {edge.fromNodeTitle ?? edge.fromNodeId}
+                </text>
+                <text fg={props.colors.textMuted}>{'  -> '}{edge.toNodeTitle ?? edge.toNodeId}</text>
+              </box>
+            )}
+          </For>
+        </box>
       </Show>
     </box>
   );
