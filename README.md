@@ -40,9 +40,17 @@ BRHP reads instructions from:
 - `~/.config/opencode/brhp/instructions`
 - `.opencode/brhp/instructions`
 
+A default instruction set is included in `.opencode/brhp/instructions/planning-with-brhp.md` that teaches the LLM how to use BRHP tools.
+
 Planning sessions are stored locally at:
 
 - `.opencode/brhp/brhp.db`
+
+Optional planner configuration can be set in:
+
+- `.opencode/brhp/config.yaml`
+
+An example config is provided at `.opencode/brhp/config.example.yaml`. Currently supported: `temperature` (0.001–1.0) and `maxDepth` (1–10). Missing or invalid config degrades gracefully to defaults.
 
 ## Getting started
 
@@ -99,6 +107,15 @@ Common commands:
 - `/brhp inspect` to inspect bounded graph, frontier, validation, node, edge, and activity detail for the active session
 - `/brhp plan <problem statement>` to start a new planning session
 - `/brhp resume <session id>` to resume an existing session
+
+Planner tools (available to the LLM during BRHP planning):
+
+| Tool | Purpose |
+| --- | --- |
+| `brhp_get_active_plan` | Read the authoritative active planning state. |
+| `brhp_decompose_node` | Decompose a node into smaller child nodes. |
+| `brhp_validate_active_scope` | Persist a validation verdict for the active scope. |
+| `brhp_complete_leaf` | Mark a leaf node as complete with a result summary. |
 
 Operator read surfaces are intentionally bounded:
 

@@ -1,0 +1,13 @@
+# BRHP planner configuration
+# Copy this file to config.yaml to activate settings.
+# Remove lines you do not wish to override.
+
+# Exploration temperature for Boltzmann frontier selection.
+# Controls exploration vs exploitation: lower = more deterministic, higher = more exploratory.
+# Range: 0.001 – 1.0  Default: 0.35
+# temperature: 0.35
+
+# Maximum recursion depth for scope decomposition.
+# Limits how deep the planning graph can grow before the depth clamp triggers.
+# Range: 1 – 10  Default: 5
+# maxDepth: 5
