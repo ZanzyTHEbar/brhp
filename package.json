@@ -42,6 +42,7 @@
     "db:compile": "sqlc compile",
     "db:vet": "sqlc vet",
     "prepack": "npm run build && npm run verify:package",
+    "prepublishOnly": "npm run build && npm run verify:package",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "verify:package": "bun ./scripts/verify-package.mjs"
@@ -49,6 +50,9 @@
   "keywords": [
     "opencode",
     "plugin",
+    "planning",
+    "structured-planning",
+    "hierarchical-planning",
     "typescript",
     "hexagonal-architecture"
   ],
