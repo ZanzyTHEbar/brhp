@@ -115,7 +115,7 @@ Planner tools (available to the LLM during BRHP planning):
 | `brhp_get_active_plan` | Read the authoritative active planning state. |
 | `brhp_decompose_node` | Decompose a node into smaller child nodes. |
 | `brhp_validate_active_scope` | Persist a validation verdict for the active scope. |
-| `brhp_complete_leaf` | Mark a leaf node as complete with a result summary. |
+| `brhp_complete_leaf` | Complete a `proposed`/`active` node with a result summary, transitioning it to `leaf`. |
 
 Operator read surfaces are intentionally bounded:
 

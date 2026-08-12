@@ -55,13 +55,13 @@ The planner tool surface remains intentionally narrow:
 | `brhp_get_active_plan` | Reads the authoritative active planning state for the current OpenCode chat/worktree. |
 | `brhp_decompose_node` | Decomposes one active-session node into child nodes and refreshes the frontier. |
 | `brhp_validate_active_scope` | Persists a deterministic validation verdict for the active scope and refreshes planner state. |
-| `brhp_complete_leaf` | Marks a leaf node in the active session as complete with a result summary. Records a `leaf-completed` event and advances session revision. |
+| `brhp_complete_leaf` | Completes a `proposed` or `active` node in the active session with a result summary, transitioning its status to `leaf`. Records a `leaf-completed` event and advances session revision. Rejects nodes that are already `decomposed`, already `leaf`, `pruned`, or `blocked`. |
 
 `brhp_get_active_plan` is stable as a read capability, not as a versioned JSON schema. Until a versioned machine-readable schema exists, only the read-model concepts listed above are stable.
 
 Do not add aggregated mutation tools until the current mutation contracts have stopped moving and there is clear operator/tooling pain that justifies consolidation.
 
-`brhp_complete_leaf` exists as the durable leaf-completion contract for recursive language-model agent integration. It is stable as a mutation surface; the exact completion semantics are stable but the downstream agent-spawning mechanism remains a future concern.
+`brhp_complete_leaf` exists as the durable leaf-completion contract for recursive language-model agent integration. It is stable as a mutation surface; the exact completion semantics are stable but the downstream agent-spawning mechanism remains a future concern. Because decomposition is currently the only mutation that creates work nodes, and it always creates them as `proposed` (with the session root created as `active`), `brhp_complete_leaf` accepts either of those two source statuses as the practical leaf-completion entry point and treats completion as the terminal transition to `leaf`.
 
 ## Internal surfaces
 

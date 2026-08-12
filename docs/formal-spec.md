@@ -179,7 +179,7 @@ Coverage closure in BRHP v1 is defined over the latest active-scope validation s
 CoverageClosed_t = (∃ c ∈ Φ_Q : c.kind = coverage ∧ c.blocking = true) ∧ (∀ c ∈ Φ_Q : c.kind = coverage ∧ c.blocking = true => c.status = passed)
 ```
 
-Leaf completion remains deferred because the current BRHP runtime has no authoritative completion mutation or tool.
+Leaf completion is performed by the `brhp_complete_leaf` mutation, which accepts a node whose status is `proposed` or `active` (the only statuses reachable through the shipped decomposition and session-seed mutations), transitions it to `leaf`, and records a `leaf-completed` event. Nodes that are already `decomposed`, already `leaf`, `pruned`, or `blocked` are rejected.
 
 ## Operator read projection
 
