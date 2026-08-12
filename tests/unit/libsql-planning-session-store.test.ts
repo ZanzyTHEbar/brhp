@@ -245,6 +245,59 @@ describe('LibsqlPlanningSessionStore', () => {
     }
   });
 
+  it('persists leaf completion, transitions the node to leaf, and records the event', async () => {
+    const worktreePath = await mkdtemp(path.join(os.tmpdir(), 'brhp-libsql-complete-leaf-'));
+    const database = await openPlanningDatabase({ worktreePath });
+
+    try {
+      const store = new LibsqlPlanningSessionStore(database.client);
+      const ids = createIdGenerator();
+      const runtime = createPlannerRuntime({
+        clock: { now: () => new Date('2026-04-18T12:00:00.000Z') },
+        ids,
+        store,
+      });
+      const context = { worktreePath, opencodeSessionId: 'chat-complete-leaf' };
+
+      await runtime.create(
+        context,
+        {
+          directories: { global: '/global', project: `${worktreePath}/.opencode/brhp/instructions` },
+          instructions: [],
+          counts: { global: 0, project: 0, total: 0, skipped: 0 },
+          skippedFiles: [],
+        },
+        'Formalize BRHP as an OpenCode-native planner'
+      );
+
+      const initialState = await runtime.getActive(context);
+      const rootNodeId = initialState?.session.rootNodeId;
+
+      const mutation = await runtime.completeLeafNode(
+        context,
+        rootNodeId!,
+        'Root work is done for this regression test.'
+      );
+
+      expect(mutation.kind).toBe('leaf-completed');
+
+      const reloaded = await store.getActiveSession(context);
+      const completedNode = reloaded?.graph.nodes.find(node => node.id === rootNodeId);
+
+      expect(completedNode?.status).toBe('leaf');
+
+      const recentEvents = await store.listRecentEvents(reloaded!.session.id, 10);
+      expect(recentEvents.some(event => event.type === 'leaf-completed')).toBe(true);
+
+      await expect(
+        runtime.completeLeafNode(context, rootNodeId!, 'Second attempt should fail.')
+      ).rejects.toThrow('already been completed');
+    } finally {
+      database.close();
+      await rm(worktreePath, { recursive: true, force: true });
+    }
+  });
+
   it('caps recent hydrated planner events to the newest configured window', async () => {
     const worktreePath = await mkdtemp(path.join(os.tmpdir(), 'brhp-libsql-events-limit-'));
     const database = await openPlanningDatabase({ worktreePath });
