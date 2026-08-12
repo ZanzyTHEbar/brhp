@@ -382,6 +382,26 @@ export class LibsqlPlanningSessionStore
     const transaction = await this.#client.transaction('write');
 
     try {
+      const updatedNodeRows = await executePlannerQueryWithRowsAffected(
+        transaction,
+        queries.UpdatePlanningNodeStatus,
+        {
+          session_id: patch.session.id,
+          id: patch.updatedNode.id,
+          status: patch.updatedNode.status,
+          validation_pressure: patch.updatedNode.scores.validationPressure,
+          updated_at: patch.updatedNode.updatedAt,
+          expected_status: patch.originalNode.status,
+          expected_updated_at: patch.originalNode.updatedAt,
+        }
+      );
+
+      if (updatedNodeRows !== 1) {
+        throw new Error(
+          `Planning node '${patch.updatedNode.id}' could not be completed as a leaf because it changed concurrently`
+        );
+      }
+
       for (const event of patch.events) {
         await executePlannerQuery(transaction, queries.CreatePlanningEvent, {
           id: event.id,

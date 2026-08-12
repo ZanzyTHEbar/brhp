@@ -46,6 +46,8 @@ export interface PlanningValidationRecordPatch {
 export interface PlanningLeafCompletionPatch {
   readonly session: PlanningSession;
   readonly previousSessionRevision: number;
+  readonly originalNode: PlanNode;
+  readonly updatedNode: PlanNode;
   readonly events: readonly PlanningEvent[];
 }
 
