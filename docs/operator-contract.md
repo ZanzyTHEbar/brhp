@@ -55,13 +55,18 @@ The planner tool surface remains intentionally narrow:
 | `brhp_get_active_plan` | Reads the authoritative active planning state for the current OpenCode chat/worktree. |
 | `brhp_decompose_node` | Decomposes one active-session node into child nodes and refreshes the frontier. |
 | `brhp_validate_active_scope` | Persists a deterministic validation verdict for the active scope and refreshes planner state. |
-| `brhp_complete_leaf` | Marks a leaf node in the active session as complete with a result summary. Records a `leaf-completed` event and advances session revision. |
+| `brhp_complete_leaf` | Completes a `proposed` or `active` node in the active session with a result summary, transitioning its status to `leaf`. Records a `leaf-completed` event and advances session revision. Rejects nodes that are already `decomposed`, already `leaf`, `pruned`, or `blocked`. |
+| `brhp_query_nodes` | Read-only, filtered, paginated query over planner nodes in the active (or an explicitly named) session. Filters: `sessionId`, `scopeId`, `parentNodeId`, `status`, `category`, `titleContains` (substring match), `depth`, `limit` (default 20), `offset` (default 0). Returns `{ nodes, total }` with deterministic ordering (title, then status, then depth, then id). Not capped to a fixed frontier size. |
+| `brhp_get_node` | Read-only lookup of a single planner node by `id` (optionally scoped to `sessionId`), returning the node plus its direct incoming/outgoing edges. Returns `{ found: false, message }` when the node does not exist. |
+| `brhp_search_nodes` | Read-only ranked search over planner node titles and problem statements in the active (or an explicitly named) session, given a `query` string and optional `limit` (default 20). Exact title matches rank first, then title-prefix, then title-contains, then problem-statement-contains. |
 
 `brhp_get_active_plan` is stable as a read capability, not as a versioned JSON schema. Until a versioned machine-readable schema exists, only the read-model concepts listed above are stable.
 
+`brhp_query_nodes`, `brhp_get_node`, and `brhp_search_nodes` are the supported filtered read path for the planner graph. They exist specifically so operators and agents do not need to fall back to raw `sqlite3` queries against `.opencode/brhp/brhp.db` to find nodes by title, status, or parent when a session has converged with many proposed/leaf nodes. All three are read-only: they never mutate planner state and never write planner events.
+
 Do not add aggregated mutation tools until the current mutation contracts have stopped moving and there is clear operator/tooling pain that justifies consolidation.
 
-`brhp_complete_leaf` exists as the durable leaf-completion contract for recursive language-model agent integration. It is stable as a mutation surface; the exact completion semantics are stable but the downstream agent-spawning mechanism remains a future concern.
+`brhp_complete_leaf` exists as the durable leaf-completion contract for recursive language-model agent integration. It is stable as a mutation surface; the exact completion semantics are stable but the downstream agent-spawning mechanism remains a future concern. Because decomposition is currently the only mutation that creates work nodes, and it always creates them as `proposed` (with the session root created as `active`), `brhp_complete_leaf` accepts either of those two source statuses as the practical leaf-completion entry point and treats completion as the terminal transition to `leaf`.
 
 ## Internal surfaces
 

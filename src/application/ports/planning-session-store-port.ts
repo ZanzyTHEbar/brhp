@@ -1,6 +1,6 @@
 import type { FrontierSnapshot } from '../../domain/planning/frontier.js';
 import type { PlanEdge } from '../../domain/planning/plan-edge.js';
-import type { PlanNode } from '../../domain/planning/plan-node.js';
+import type { PlanNode, PlanNodeCategory, PlanNodeStatus } from '../../domain/planning/plan-node.js';
 import type { PlanningEvent } from '../../domain/planning/planning-event.js';
 import type {
   PlanningSession,
@@ -46,6 +46,8 @@ export interface PlanningValidationRecordPatch {
 export interface PlanningLeafCompletionPatch {
   readonly session: PlanningSession;
   readonly previousSessionRevision: number;
+  readonly originalNode: PlanNode;
+  readonly updatedNode: PlanNode;
   readonly events: readonly PlanningEvent[];
 }
 
@@ -57,9 +59,38 @@ export interface PlanningSessionStorePort {
   applyLeafCompletion(patch: PlanningLeafCompletionPatch): Promise<void>;
 }
 
+export interface PlanNodeQueryFilter {
+  readonly sessionId: string;
+  readonly scopeId?: string;
+  readonly parentNodeId?: string;
+  readonly status?: PlanNodeStatus;
+  readonly category?: PlanNodeCategory;
+  readonly titleContains?: string;
+  readonly depth?: number;
+  readonly limit: number;
+  readonly offset: number;
+}
+
+export interface PlanNodeQueryResult {
+  readonly nodes: readonly PlanNode[];
+  readonly total: number;
+}
+
+export interface PlanNodeWithEdges {
+  readonly node: PlanNode;
+  readonly edges: readonly PlanEdge[];
+}
+
 export interface PlanningSessionQueryPort {
   getActiveSession(context: PlanningSessionContext): Promise<PlanningState | null>;
   getSessionById(worktreePath: string, sessionId: string): Promise<PlanningState | null>;
   listSessions(worktreePath: string): Promise<readonly PlanningSession[]>;
   listRecentEvents(sessionId: string, limit: number): Promise<readonly PlanningEvent[]>;
+  queryNodes(filter: PlanNodeQueryFilter): Promise<PlanNodeQueryResult>;
+  getNodeById(sessionId: string, nodeId: string): Promise<PlanNodeWithEdges | null>;
+  searchNodes(
+    sessionId: string,
+    query: string,
+    limit: number
+  ): Promise<readonly PlanNode[]>;
 }

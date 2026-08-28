@@ -46,7 +46,17 @@ export function completeLeafNode(
     throw new Error(`Planning node '${trimmedNodeId}' does not belong to the active session`);
   }
 
-  if (node.status !== 'leaf') {
+  if (node.status === 'leaf') {
+    throw new Error(`Planning node '${trimmedNodeId}' has already been completed as a leaf`);
+  }
+
+  if (node.status === 'decomposed') {
+    throw new Error(
+      `Planning node '${trimmedNodeId}' has already been decomposed and cannot be completed as a leaf`
+    );
+  }
+
+  if (node.status !== 'proposed' && node.status !== 'active') {
     throw new Error(
       `Planning node '${trimmedNodeId}' has status '${node.status}' and cannot be completed as a leaf`
     );
@@ -57,6 +67,12 @@ export function completeLeafNode(
   const updatedSession = {
     ...input.state.session,
     revision: input.state.session.revision + 1,
+    updatedAt: timestamp,
+  };
+
+  const updatedNode = {
+    ...node,
+    status: 'leaf' as const,
     updatedAt: timestamp,
   };
 
@@ -77,6 +93,8 @@ export function completeLeafNode(
   return {
     session: updatedSession,
     previousSessionRevision: input.state.session.revision,
+    originalNode: node,
+    updatedNode,
     events,
   };
 }

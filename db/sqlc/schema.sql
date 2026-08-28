@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS planner_events (
     session_id TEXT NOT NULL REFERENCES planner_sessions(id) ON DELETE CASCADE,
     scope_id TEXT REFERENCES planner_scopes(id) ON DELETE SET NULL,
     node_id TEXT REFERENCES planner_nodes(id) ON DELETE SET NULL,
-    type TEXT NOT NULL CHECK (type IN ('session-created', 'scope-created', 'node-created', 'node-decomposed', 'edge-created', 'frontier-snapshotted', 'validation-recorded')),
+    type TEXT NOT NULL CHECK (type IN ('session-created', 'scope-created', 'node-created', 'node-decomposed', 'edge-created', 'frontier-snapshotted', 'validation-recorded', 'leaf-completed')),
     payload_json JSON NOT NULL,
     occurred_at DATETIME NOT NULL
 );

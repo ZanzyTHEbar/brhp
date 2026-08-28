@@ -6,6 +6,9 @@ import type {
   PlanningSessionContext,
   PlanningSessionQueryPort,
   PlanningSessionStorePort,
+  PlanNodeQueryFilter,
+  PlanNodeQueryResult,
+  PlanNodeWithEdges,
 } from '../ports/planning-session-store-port.js';
 import { decomposePlanningNode, type DecomposePlanningNodeChildInput } from '../use-cases/decompose-planning-node.js';
 import { createPlanningSessionSeed } from '../use-cases/create-planning-session-seed.js';
@@ -18,6 +21,7 @@ import type { InstructionInventory } from '../../domain/instructions/instruction
 import type { PlanningEvent } from '../../domain/planning/planning-event.js';
 import type { PlanningState } from '../../domain/planning/planning-session.js';
 import type { PlannerConfig } from '../../domain/planning/planner-config.js';
+import type { PlanNode, PlanNodeCategory, PlanNodeStatus } from '../../domain/planning/plan-node.js';
 
 export type PlannerRuntimeMutation =
   | { readonly kind: 'none' }
@@ -35,6 +39,18 @@ export interface DecomposePlanningNodeRequest {
 
 export interface RecordActiveScopeValidationRequest {
   readonly clauses: readonly RecordActiveScopeValidationClauseInput[];
+}
+
+export interface QueryPlannerNodesRequest {
+  readonly sessionId?: string;
+  readonly scopeId?: string;
+  readonly parentNodeId?: string;
+  readonly status?: PlanNodeStatus;
+  readonly category?: PlanNodeCategory;
+  readonly titleContains?: string;
+  readonly depth?: number;
+  readonly limit?: number;
+  readonly offset?: number;
 }
 
 export interface PlannerRuntime {
@@ -75,7 +91,25 @@ export interface PlannerRuntime {
     nodeId: string,
     completionSummary: string
   ): Promise<PlannerRuntimeMutation>;
+  queryNodes(
+    context: PlanningSessionContext,
+    request: QueryPlannerNodesRequest
+  ): Promise<PlanNodeQueryResult>;
+  getNode(
+    context: PlanningSessionContext,
+    nodeId: string,
+    sessionId?: string
+  ): Promise<PlanNodeWithEdges | null>;
+  searchNodes(
+    context: PlanningSessionContext,
+    query: string,
+    limit?: number,
+    sessionId?: string
+  ): Promise<readonly PlanNode[]>;
 }
+
+export const DEFAULT_QUERY_NODES_LIMIT = 20;
+export const DEFAULT_SEARCH_NODES_LIMIT = 20;
 
 export interface CreatePlannerRuntimeInput {
   readonly clock: ClockPort;
@@ -248,7 +282,61 @@ export function createPlannerRuntime(input: CreatePlannerRuntimeInput): PlannerR
         nodeId,
       };
     },
+
+    async queryNodes(context, request) {
+      const sessionId = await resolveSessionId(input.store, context, request.sessionId);
+
+      if (!sessionId) {
+        return { nodes: [], total: 0 };
+      }
+
+      return input.store.queryNodes({
+        sessionId,
+        ...(request.scopeId ? { scopeId: request.scopeId } : {}),
+        ...(request.parentNodeId ? { parentNodeId: request.parentNodeId } : {}),
+        ...(request.status ? { status: request.status } : {}),
+        ...(request.category ? { category: request.category } : {}),
+        ...(request.titleContains ? { titleContains: request.titleContains } : {}),
+        ...(request.depth !== undefined ? { depth: request.depth } : {}),
+        limit: request.limit ?? DEFAULT_QUERY_NODES_LIMIT,
+        offset: request.offset ?? 0,
+      });
+    },
+
+    async getNode(context, nodeId, sessionId) {
+      const resolvedSessionId = await resolveSessionId(input.store, context, sessionId);
+
+      if (!resolvedSessionId) {
+        return null;
+      }
+
+      return input.store.getNodeById(resolvedSessionId, nodeId);
+    },
+
+    async searchNodes(context, query, limit, sessionId) {
+      const resolvedSessionId = await resolveSessionId(input.store, context, sessionId);
+
+      if (!resolvedSessionId) {
+        return [];
+      }
+
+      return input.store.searchNodes(resolvedSessionId, query, limit ?? DEFAULT_SEARCH_NODES_LIMIT);
+    },
   };
+}
+
+async function resolveSessionId(
+  store: CreatePlannerRuntimeInput['store'],
+  context: PlanningSessionContext,
+  sessionId: string | undefined
+): Promise<string | null> {
+  if (sessionId) {
+    const state = await store.getSessionById(context.worktreePath, sessionId);
+    return state ? state.session.id : null;
+  }
+
+  const active = await store.getActiveSession(context);
+  return active ? active.session.id : null;
 }
 
 function extractInstructionInvariants(instruction: InstructionInventory['instructions'][number]): string[] {
