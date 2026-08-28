@@ -1440,6 +1440,111 @@ describe('LibsqlPlanningSessionStore', () => {
       await rm(worktreePath, { recursive: true, force: true });
     }
   });
+
+  it('supports filtered/paginated node queries, single-node lookup with edges, and ranked search', async () => {
+    const worktreePath = await mkdtemp(path.join(os.tmpdir(), 'brhp-libsql-query-nodes-'));
+    const database = await openPlanningDatabase({ worktreePath });
+
+    try {
+      const store = new LibsqlPlanningSessionStore(database.client);
+      const ids = createIdGenerator();
+      const runtime = createPlannerRuntime({
+        clock: { now: () => new Date('2026-04-20T09:00:00.000Z') },
+        ids,
+        store,
+      });
+      const context = { worktreePath, opencodeSessionId: 'chat-query-nodes' };
+
+      await runtime.create(
+        context,
+        {
+          directories: { global: '/global', project: `${worktreePath}/.opencode/brhp/instructions` },
+          instructions: [],
+          counts: { global: 0, total: 0, project: 0, skipped: 0 },
+          skippedFiles: [],
+        },
+        'Build a filtered planner node read path'
+      );
+
+      const active = await runtime.getActive(context);
+      const sessionId = active!.session.id;
+      const rootNodeId = active!.session.rootNodeId;
+
+      await runtime.decomposeNode(context, {
+        nodeId: rootNodeId,
+        children: [
+          { title: 'Alpha child node', problemStatement: 'Alpha problem statement.', category: 'dependent' },
+          { title: 'Beta child node', problemStatement: 'Beta problem statement.', category: 'isolated' },
+          { title: 'Gamma child node', problemStatement: 'Gamma problem statement.', category: 'dependent' },
+        ],
+      });
+
+      // Filter by category, deterministic ordering by title.
+      const dependentPage = await store.queryNodes({
+        sessionId,
+        category: 'dependent',
+        limit: 1,
+        offset: 0,
+      });
+
+      expect(dependentPage.total).toBe(2);
+      expect(dependentPage.nodes).toHaveLength(1);
+      expect(dependentPage.nodes[0]?.title).toBe('Alpha child node');
+
+      const dependentPageTwo = await store.queryNodes({
+        sessionId,
+        category: 'dependent',
+        limit: 1,
+        offset: 1,
+      });
+
+      expect(dependentPageTwo.nodes[0]?.title).toBe('Gamma child node');
+
+      // Filter by titleContains.
+      const betaFiltered = await store.queryNodes({
+        sessionId,
+        titleContains: 'Beta',
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(betaFiltered.total).toBe(1);
+      expect(betaFiltered.nodes[0]?.title).toBe('Beta child node');
+
+      // Filter by parentNodeId + status.
+      const proposedChildren = await store.queryNodes({
+        sessionId,
+        parentNodeId: rootNodeId,
+        status: 'proposed',
+        limit: 20,
+        offset: 0,
+      });
+
+      expect(proposedChildren.total).toBe(3);
+
+      // getNodeById returns the node plus direct edges.
+      const betaNodeId = betaFiltered.nodes[0]!.id;
+      const withEdges = await store.getNodeById(sessionId, betaNodeId);
+
+      expect(withEdges?.node.title).toBe('Beta child node');
+      expect(withEdges?.edges).toHaveLength(1);
+      expect(withEdges?.edges[0]?.fromNodeId).toBe(rootNodeId);
+      expect(withEdges?.edges[0]?.toNodeId).toBe(betaNodeId);
+      expect(withEdges?.edges[0]?.kind).toBe('decomposes-to');
+
+      expect(await store.getNodeById(sessionId, 'missing-node-id')).toBeNull();
+
+      // searchNodes ranks exact/prefix/contains matches.
+      const searched = await store.searchNodes(sessionId, 'Gamma', 20);
+      expect(searched[0]?.title).toBe('Gamma child node');
+
+      const searchedByProblem = await store.searchNodes(sessionId, 'Alpha problem', 20);
+      expect(searchedByProblem.some(node => node.title === 'Alpha child node')).toBe(true);
+    } finally {
+      database.close();
+      await rm(worktreePath, { recursive: true, force: true });
+    }
+  });
 });
 
 function createIdGenerator(start = 0) {

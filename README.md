@@ -116,6 +116,9 @@ Planner tools (available to the LLM during BRHP planning):
 | `brhp_decompose_node` | Decompose a node into smaller child nodes. |
 | `brhp_validate_active_scope` | Persist a validation verdict for the active scope. |
 | `brhp_complete_leaf` | Complete a `proposed`/`active` node with a result summary, transitioning it to `leaf`. |
+| `brhp_query_nodes` | Filtered, paginated, read-only query over planner nodes (by scope, parent, status, category, title substring, depth). Not capped to a fixed frontier size. |
+| `brhp_get_node` | Read-only lookup of a single planner node by id, including its direct edges. |
+| `brhp_search_nodes` | Read-only ranked search over planner node titles/problem statements. |
 
 Operator read surfaces are intentionally bounded:
 

@@ -580,6 +580,92 @@ describe('createPlannerRuntime', () => {
       })
     ).rejects.toThrow('Archived BRHP planning sessions cannot be decomposed');
   });
+
+  it('queryNodes returns an empty page when no active session exists and no sessionId is given', async () => {
+    const store = createInMemoryStore();
+    const runtime = createPlannerRuntime({
+      clock: { now: () => new Date('2026-04-21T08:00:00.000Z') },
+      ids: createIdGenerator(),
+      store,
+    });
+
+    await expect(
+      runtime.queryNodes({ worktreePath: '/repo', opencodeSessionId: 'chat-none' }, {})
+    ).resolves.toEqual({ nodes: [], total: 0 });
+  });
+
+  it('getNode returns null and searchNodes returns [] when no active session exists', async () => {
+    const store = createInMemoryStore();
+    const runtime = createPlannerRuntime({
+      clock: { now: () => new Date('2026-04-21T08:00:00.000Z') },
+      ids: createIdGenerator(),
+      store,
+    });
+    const context = { worktreePath: '/repo', opencodeSessionId: 'chat-none' };
+
+    await expect(runtime.getNode(context, 'missing-node')).resolves.toBeNull();
+    await expect(runtime.searchNodes(context, 'anything')).resolves.toEqual([]);
+  });
+
+  it('queryNodes, getNode, and searchNodes resolve against the active session and apply defaults', async () => {
+    const store = createInMemoryStore();
+    const ids = createIdGenerator();
+    const runtime = createPlannerRuntime({
+      clock: { now: () => new Date('2026-04-21T08:05:00.000Z') },
+      ids,
+      store,
+    });
+    const context = { worktreePath: '/repo', opencodeSessionId: 'chat-query' };
+
+    await runtime.create(
+      context,
+      {
+        directories: { global: '/global', project: '/repo/.opencode/brhp/instructions' },
+        instructions: [],
+        counts: { global: 0, project: 0, total: 0, skipped: 0 },
+        skippedFiles: [],
+      },
+      'Root problem for query-node tests'
+    );
+
+    const active = await runtime.getActive(context);
+    const rootNodeId = active!.session.rootNodeId;
+
+    await runtime.decomposeNode(context, {
+      nodeId: rootNodeId,
+      children: [
+        { title: 'Child one', problemStatement: 'First child problem.', category: 'dependent' },
+        { title: 'Child two', problemStatement: 'Second child problem.', category: 'isolated' },
+      ],
+    });
+
+    const page = await runtime.queryNodes(context, {});
+    expect(page.total).toBe(3);
+    expect(page.nodes).toHaveLength(3);
+
+    const filtered = await runtime.queryNodes(context, { titleContains: 'Child two' });
+    expect(filtered.total).toBe(1);
+    expect(filtered.nodes[0]?.title).toBe('Child two');
+
+    const childOneId = page.nodes.find(node => node.title === 'Child one')!.id;
+    const nodeWithEdges = await runtime.getNode(context, childOneId);
+    expect(nodeWithEdges?.node.title).toBe('Child one');
+    expect(nodeWithEdges?.edges).toHaveLength(1);
+
+    const searched = await runtime.searchNodes(context, 'Second child');
+    expect(searched.some(node => node.title === 'Child two')).toBe(true);
+
+    // Explicit sessionId should resolve the same session even without an active context match.
+    const bySessionId = await runtime.queryNodes(
+      { worktreePath: '/repo', opencodeSessionId: 'unrelated-chat' },
+      { sessionId: active!.session.id }
+    );
+    expect(bySessionId.total).toBe(3);
+
+    // Unknown explicit sessionId resolves to an empty result rather than throwing.
+    const byUnknownSessionId = await runtime.queryNodes(context, { sessionId: 'does-not-exist' });
+    expect(byUnknownSessionId).toEqual({ nodes: [], total: 0 });
+  });
 });
 
 function createInMemoryStore() {
@@ -687,6 +773,71 @@ function createInMemoryStore() {
 
       return [...state.events]
         .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt) || right.id.localeCompare(left.id))
+        .slice(0, limit);
+    },
+    async queryNodes(filter: {
+      sessionId: string;
+      scopeId?: string;
+      parentNodeId?: string;
+      status?: string;
+      category?: string;
+      titleContains?: string;
+      depth?: number;
+      limit: number;
+      offset: number;
+    }) {
+      const state = states.get(filter.sessionId);
+      if (!state) {
+        return { nodes: [], total: 0 };
+      }
+
+      const filtered = state.nodes.filter(node => {
+        if (filter.scopeId && node.scopeId !== filter.scopeId) return false;
+        if (filter.parentNodeId && node.parentNodeId !== filter.parentNodeId) return false;
+        if (filter.status && node.status !== filter.status) return false;
+        if (filter.category && node.category !== filter.category) return false;
+        if (filter.depth !== undefined && node.depth !== filter.depth) return false;
+        if (filter.titleContains && !node.title.includes(filter.titleContains)) return false;
+        return true;
+      });
+
+      const sorted = [...filtered].sort(
+        (left, right) =>
+          left.title.localeCompare(right.title) ||
+          left.status.localeCompare(right.status) ||
+          left.depth - right.depth ||
+          left.id.localeCompare(right.id)
+      );
+
+      return {
+        nodes: sorted.slice(filter.offset, filter.offset + filter.limit),
+        total: filtered.length,
+      };
+    },
+    async getNodeById(sessionId: string, nodeId: string) {
+      const state = states.get(sessionId);
+      if (!state) {
+        return null;
+      }
+
+      const node = state.nodes.find(candidate => candidate.id === nodeId);
+      if (!node) {
+        return null;
+      }
+
+      return {
+        node,
+        edges: state.edges.filter(edge => edge.fromNodeId === nodeId || edge.toNodeId === nodeId),
+      };
+    },
+    async searchNodes(sessionId: string, query: string, limit: number) {
+      const state = states.get(sessionId);
+      if (!state) {
+        return [];
+      }
+
+      return state.nodes
+        .filter(node => node.title.includes(query) || node.problemStatement.includes(query))
         .slice(0, limit);
     },
     forceSessionStatus(sessionId: string, status: PlanningState['session']['status']) {

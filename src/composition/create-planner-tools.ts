@@ -189,5 +189,137 @@ export function createPlannerTools(
         return JSON.stringify(mutation, null, 2);
       },
     }),
+    [BRHP_TOOL_IDS.queryNodes]: tool({
+      description:
+        'Filtered, paginated, read-only query over BRHP planner nodes in the active (or a specified) session. Supports scopeId, parentNodeId, status, category, titleContains, and depth filters with deterministic ordering (title/status/depth). Not capped to a fixed frontier size.',
+      args: {
+        sessionId: tool.schema.string().min(1).optional(),
+        scopeId: tool.schema.string().min(1).optional(),
+        parentNodeId: tool.schema.string().min(1).optional(),
+        status: tool.schema
+          .enum(['proposed', 'active', 'decomposed', 'leaf', 'pruned', 'blocked'])
+          .optional(),
+        category: tool.schema
+          .enum(['dependent', 'isolated', 'parallelizable', 'cross-cutting'])
+          .optional(),
+        titleContains: tool.schema.string().min(1).optional(),
+        depth: tool.schema.number().int().min(0).optional(),
+        limit: tool.schema.number().int().min(1).max(200).optional(),
+        offset: tool.schema.number().int().min(0).optional(),
+      },
+      async execute(args, context) {
+        const projectPath = await resolveProjectPath(context.sessionID, context);
+        context.metadata({
+          title: 'Query BRHP planner nodes',
+          metadata: {
+            tool: BRHP_TOOL_IDS.queryNodes,
+            ...(args.titleContains ? { titleContains: args.titleContains } : {}),
+            ...(args.status ? { status: args.status } : {}),
+          },
+        });
+
+        const result = await withRuntime(
+          context.sessionID,
+          projectPath,
+          runtime =>
+            runtime.queryNodes(
+              {
+                worktreePath: projectPath,
+                opencodeSessionId: context.sessionID,
+              },
+              {
+                ...(args.sessionId ? { sessionId: args.sessionId } : {}),
+                ...(args.scopeId ? { scopeId: args.scopeId } : {}),
+                ...(args.parentNodeId ? { parentNodeId: args.parentNodeId } : {}),
+                ...(args.status ? { status: args.status } : {}),
+                ...(args.category ? { category: args.category } : {}),
+                ...(args.titleContains ? { titleContains: args.titleContains } : {}),
+                ...(args.depth !== undefined ? { depth: args.depth } : {}),
+                ...(args.limit !== undefined ? { limit: args.limit } : {}),
+                ...(args.offset !== undefined ? { offset: args.offset } : {}),
+              }
+            )
+        );
+
+        return JSON.stringify(result, null, 2);
+      },
+    }),
+    [BRHP_TOOL_IDS.getNode]: tool({
+      description:
+        'Read a single BRHP planner node by id, including its direct edges (incoming and outgoing). Read-only.',
+      args: {
+        id: tool.schema.string().min(1),
+        sessionId: tool.schema.string().min(1).optional(),
+      },
+      async execute(args, context) {
+        const projectPath = await resolveProjectPath(context.sessionID, context);
+        context.metadata({
+          title: `Get BRHP node ${args.id}`,
+          metadata: {
+            tool: BRHP_TOOL_IDS.getNode,
+            nodeId: args.id,
+          },
+        });
+
+        const result = await withRuntime(
+          context.sessionID,
+          projectPath,
+          runtime =>
+            runtime.getNode(
+              {
+                worktreePath: projectPath,
+                opencodeSessionId: context.sessionID,
+              },
+              args.id,
+              args.sessionId
+            )
+        );
+
+        return JSON.stringify(
+          result ?? {
+            found: false,
+            message: `No BRHP planner node '${args.id}' was found.`,
+          },
+          null,
+          2
+        );
+      },
+    }),
+    [BRHP_TOOL_IDS.searchNodes]: tool({
+      description:
+        'Ranked, read-only search over BRHP planner node titles and problem statements in the active (or a specified) session.',
+      args: {
+        query: tool.schema.string().min(1),
+        limit: tool.schema.number().int().min(1).max(200).optional(),
+        sessionId: tool.schema.string().min(1).optional(),
+      },
+      async execute(args, context) {
+        const projectPath = await resolveProjectPath(context.sessionID, context);
+        context.metadata({
+          title: `Search BRHP planner nodes: ${args.query}`,
+          metadata: {
+            tool: BRHP_TOOL_IDS.searchNodes,
+            query: args.query,
+          },
+        });
+
+        const nodes = await withRuntime(
+          context.sessionID,
+          projectPath,
+          runtime =>
+            runtime.searchNodes(
+              {
+                worktreePath: projectPath,
+                opencodeSessionId: context.sessionID,
+              },
+              args.query,
+              args.limit,
+              args.sessionId
+            )
+        );
+
+        return JSON.stringify({ nodes }, null, 2);
+      },
+    }),
   };
 }

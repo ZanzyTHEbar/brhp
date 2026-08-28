@@ -8,6 +8,9 @@ import type {
   PlanningSessionQueryPort,
   PlanningSessionSeed,
   PlanningSessionStorePort,
+  PlanNodeQueryFilter,
+  PlanNodeQueryResult,
+  PlanNodeWithEdges,
 } from '../../application/ports/planning-session-store-port.js';
 import type { FrontierSnapshot, FrontierSelection } from '../../domain/planning/frontier.js';
 import type { PlanEdge } from '../../domain/planning/plan-edge.js';
@@ -31,6 +34,7 @@ import {
   executePlannerQueryWithRowsAffected,
   fetchPlannerQueryMany,
   fetchPlannerQueryOne,
+  type LibsqlNamedArgs,
   type LibsqlQueryRow,
 } from './libsql-query-runtime.js';
 import { loadPlannerQueryCatalog } from './planner-query-loader.js';
@@ -502,6 +506,70 @@ export class LibsqlPlanningSessionStore
     });
 
     return eventRows.map(mapPlanningEventRow);
+  }
+
+  async queryNodes(filter: PlanNodeQueryFilter): Promise<PlanNodeQueryResult> {
+    const queries = await this.#queryCatalogPromise;
+    const args: LibsqlNamedArgs = {
+      session_id: filter.sessionId,
+      scope_id: filter.scopeId ?? null,
+      parent_node_id: filter.parentNodeId ?? null,
+      status: filter.status ?? null,
+      category: filter.category ?? null,
+      depth: filter.depth ?? null,
+      title_contains: filter.titleContains ? `%${filter.titleContains}%` : null,
+      limit_count: filter.limit,
+      offset_count: filter.offset,
+    };
+
+    const [nodeRows, totalRow] = await Promise.all([
+      fetchPlannerQueryMany(this.#client, queries.QueryPlanningNodes, args),
+      fetchPlannerQueryOne(this.#client, queries.CountPlanningNodes, args),
+    ]);
+
+    return {
+      nodes: nodeRows.map(mapNodeRow),
+      total: totalRow ? readNumber(totalRow, 'total') : 0,
+    };
+  }
+
+  async getNodeById(sessionId: string, nodeId: string): Promise<PlanNodeWithEdges | null> {
+    const queries = await this.#queryCatalogPromise;
+    const nodeRow = await fetchPlannerQueryOne(this.#client, queries.GetPlanningNodeByID, {
+      session_id: sessionId,
+      id: nodeId,
+    });
+
+    if (!nodeRow) {
+      return null;
+    }
+
+    const edgeRows = await fetchPlannerQueryMany(this.#client, queries.ListPlanningEdgesByNode, {
+      session_id: sessionId,
+      node_id: nodeId,
+    });
+
+    return {
+      node: mapNodeRow(nodeRow),
+      edges: edgeRows.map(mapEdgeRow),
+    };
+  }
+
+  async searchNodes(
+    sessionId: string,
+    query: string,
+    limit: number
+  ): Promise<readonly PlanNode[]> {
+    const queries = await this.#queryCatalogPromise;
+    const nodeRows = await fetchPlannerQueryMany(this.#client, queries.SearchPlanningNodes, {
+      session_id: sessionId,
+      query_exact: query,
+      query_prefix: `${query}%`,
+      query_contains: `%${query}%`,
+      limit_count: limit,
+    });
+
+    return nodeRows.map(mapNodeRow);
   }
 
   async #hydratePlanningState(sessionRow: LibsqlQueryRow): Promise<PlanningState> {

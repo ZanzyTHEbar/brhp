@@ -30,6 +30,9 @@ describe('createServerPluginHooks', () => {
       'brhp_decompose_node',
       'brhp_validate_active_scope',
       'brhp_complete_leaf',
+      'brhp_query_nodes',
+      'brhp_get_node',
+      'brhp_search_nodes',
     ]);
   });
 
@@ -432,6 +435,100 @@ describe('createServerPluginHooks', () => {
       expect(String(typeof validatedPlanOutput === 'string' ? validatedPlanOutput : (validatedPlanOutput as any)?.output ?? '')).toContain('"validationPressure"');
       expect(String(typeof validatedPlanOutput === 'string' ? validatedPlanOutput : (validatedPlanOutput as any)?.output ?? '')).toContain('"recentEvents"');
 
+      const queryNodesOutput = await hooks.tool?.brhp_query_nodes?.execute(
+        { titleContains: 'graph tools', limit: 5 },
+        {
+          sessionID: 'chat-b',
+          messageID: 'message-5',
+          agent: 'assistant',
+          directory: projectDirectory,
+          worktree: projectDirectory,
+          abort: new AbortController().signal,
+          metadata() {},
+          ask: async () => {},
+        } as never
+      );
+
+      const queryNodesText = String(
+        typeof queryNodesOutput === 'string' ? queryNodesOutput : (queryNodesOutput as any)?.output ?? ''
+      );
+      const queryNodesResult = JSON.parse(queryNodesText) as {
+        total: number;
+        nodes: { id: string; title: string }[];
+      };
+
+      expect(queryNodesResult.total).toBe(1);
+      expect(queryNodesResult.nodes).toHaveLength(1);
+      expect(queryNodesResult.nodes[0]?.title).toBe('Define graph tools');
+
+      const definedGraphToolsNodeId = queryNodesResult.nodes[0]!.id;
+
+      const getNodeOutput = await hooks.tool?.brhp_get_node?.execute(
+        { id: definedGraphToolsNodeId },
+        {
+          sessionID: 'chat-b',
+          messageID: 'message-6',
+          agent: 'assistant',
+          directory: projectDirectory,
+          worktree: projectDirectory,
+          abort: new AbortController().signal,
+          metadata() {},
+          ask: async () => {},
+        } as never
+      );
+
+      const getNodeText = String(
+        typeof getNodeOutput === 'string' ? getNodeOutput : (getNodeOutput as any)?.output ?? ''
+      );
+      const getNodeResult = JSON.parse(getNodeText) as {
+        node?: { title: string };
+        edges?: { fromNodeId: string; toNodeId: string; kind: string }[];
+      };
+
+      expect(getNodeResult.node?.title).toBe('Define graph tools');
+      expect(getNodeResult.edges).toHaveLength(1);
+      expect(getNodeResult.edges?.[0]?.toNodeId).toBe(definedGraphToolsNodeId);
+      expect(getNodeResult.edges?.[0]?.kind).toBe('decomposes-to');
+
+      const missingNodeOutput = await hooks.tool?.brhp_get_node?.execute(
+        { id: 'does-not-exist' },
+        {
+          sessionID: 'chat-b',
+          messageID: 'message-7',
+          agent: 'assistant',
+          directory: projectDirectory,
+          worktree: projectDirectory,
+          abort: new AbortController().signal,
+          metadata() {},
+          ask: async () => {},
+        } as never
+      );
+
+      expect(
+        String(typeof missingNodeOutput === 'string' ? missingNodeOutput : (missingNodeOutput as any)?.output ?? '')
+      ).toContain('"found": false');
+
+      const searchNodesOutput = await hooks.tool?.brhp_search_nodes?.execute(
+        { query: 'frontier' },
+        {
+          sessionID: 'chat-b',
+          messageID: 'message-8',
+          agent: 'assistant',
+          directory: projectDirectory,
+          worktree: projectDirectory,
+          abort: new AbortController().signal,
+          metadata() {},
+          ask: async () => {},
+        } as never
+      );
+
+      const searchNodesText = String(
+        typeof searchNodesOutput === 'string' ? searchNodesOutput : (searchNodesOutput as any)?.output ?? ''
+      );
+      const searchNodesResult = JSON.parse(searchNodesText) as { nodes: { title: string }[] };
+
+      expect(searchNodesResult.nodes.some(node => node.title === 'Persist frontier updates')).toBe(true);
+
       const statusOutput = {
         parts: [{ type: 'text', text: 'replace me' }],
       };
@@ -563,6 +660,15 @@ describe('createServerPluginHooks', () => {
         throw new Error('not used');
       },
       async completeLeafNode() {
+        throw new Error('not used');
+      },
+      async queryNodes() {
+        throw new Error('not used');
+      },
+      async getNode() {
+        throw new Error('not used');
+      },
+      async searchNodes() {
         throw new Error('not used');
       },
     };

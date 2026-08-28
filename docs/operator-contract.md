@@ -56,8 +56,13 @@ The planner tool surface remains intentionally narrow:
 | `brhp_decompose_node` | Decomposes one active-session node into child nodes and refreshes the frontier. |
 | `brhp_validate_active_scope` | Persists a deterministic validation verdict for the active scope and refreshes planner state. |
 | `brhp_complete_leaf` | Completes a `proposed` or `active` node in the active session with a result summary, transitioning its status to `leaf`. Records a `leaf-completed` event and advances session revision. Rejects nodes that are already `decomposed`, already `leaf`, `pruned`, or `blocked`. |
+| `brhp_query_nodes` | Read-only, filtered, paginated query over planner nodes in the active (or an explicitly named) session. Filters: `sessionId`, `scopeId`, `parentNodeId`, `status`, `category`, `titleContains` (substring match), `depth`, `limit` (default 20), `offset` (default 0). Returns `{ nodes, total }` with deterministic ordering (title, then status, then depth, then id). Not capped to a fixed frontier size. |
+| `brhp_get_node` | Read-only lookup of a single planner node by `id` (optionally scoped to `sessionId`), returning the node plus its direct incoming/outgoing edges. Returns `{ found: false, message }` when the node does not exist. |
+| `brhp_search_nodes` | Read-only ranked search over planner node titles and problem statements in the active (or an explicitly named) session, given a `query` string and optional `limit` (default 20). Exact title matches rank first, then title-prefix, then title-contains, then problem-statement-contains. |
 
 `brhp_get_active_plan` is stable as a read capability, not as a versioned JSON schema. Until a versioned machine-readable schema exists, only the read-model concepts listed above are stable.
+
+`brhp_query_nodes`, `brhp_get_node`, and `brhp_search_nodes` are the supported filtered read path for the planner graph. They exist specifically so operators and agents do not need to fall back to raw `sqlite3` queries against `.opencode/brhp/brhp.db` to find nodes by title, status, or parent when a session has converged with many proposed/leaf nodes. All three are read-only: they never mutate planner state and never write planner events.
 
 Do not add aggregated mutation tools until the current mutation contracts have stopped moving and there is clear operator/tooling pain that justifies consolidation.
 

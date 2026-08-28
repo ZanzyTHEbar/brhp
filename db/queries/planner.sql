@@ -537,3 +537,111 @@ SELECT snapshot_id,
 FROM planner_validation_clauses
 WHERE snapshot_id = sqlc.arg(snapshot_id)
 ORDER BY ordinal ASC;
+
+-- name: QueryPlanningNodes :many
+SELECT id,
+       session_id,
+       scope_id,
+       parent_node_id,
+       title,
+       problem_statement,
+       logical_form,
+       category,
+       status,
+       depth,
+       rationale,
+       utility,
+       confidence,
+       local_entropy,
+       validation_pressure,
+       created_at,
+       updated_at
+FROM planner_nodes
+WHERE session_id = sqlc.arg(session_id)
+  AND (sqlc.arg(scope_id) IS NULL OR scope_id = sqlc.arg(scope_id))
+  AND (sqlc.arg(parent_node_id) IS NULL OR parent_node_id = sqlc.arg(parent_node_id))
+  AND (sqlc.arg(status) IS NULL OR status = sqlc.arg(status))
+  AND (sqlc.arg(category) IS NULL OR category = sqlc.arg(category))
+  AND (sqlc.arg(depth) IS NULL OR depth = sqlc.arg(depth))
+  AND (sqlc.arg(title_contains) IS NULL OR title LIKE sqlc.arg(title_contains))
+ORDER BY title ASC, status ASC, depth ASC, id ASC
+LIMIT sqlc.arg(limit_count) OFFSET sqlc.arg(offset_count);
+
+-- name: CountPlanningNodes :one
+SELECT COUNT(*) AS total
+FROM planner_nodes
+WHERE session_id = sqlc.arg(session_id)
+  AND (sqlc.arg(scope_id) IS NULL OR scope_id = sqlc.arg(scope_id))
+  AND (sqlc.arg(parent_node_id) IS NULL OR parent_node_id = sqlc.arg(parent_node_id))
+  AND (sqlc.arg(status) IS NULL OR status = sqlc.arg(status))
+  AND (sqlc.arg(category) IS NULL OR category = sqlc.arg(category))
+  AND (sqlc.arg(depth) IS NULL OR depth = sqlc.arg(depth))
+  AND (sqlc.arg(title_contains) IS NULL OR title LIKE sqlc.arg(title_contains));
+
+-- name: GetPlanningNodeByID :one
+SELECT id,
+       session_id,
+       scope_id,
+       parent_node_id,
+       title,
+       problem_statement,
+       logical_form,
+       category,
+       status,
+       depth,
+       rationale,
+       utility,
+       confidence,
+       local_entropy,
+       validation_pressure,
+       created_at,
+       updated_at
+FROM planner_nodes
+WHERE session_id = sqlc.arg(session_id)
+  AND id = sqlc.arg(id)
+LIMIT 1;
+
+-- name: ListPlanningEdgesByNode :many
+SELECT id,
+       session_id,
+       from_node_id,
+       to_node_id,
+       kind,
+       created_at
+FROM planner_edges
+WHERE session_id = sqlc.arg(session_id)
+  AND (from_node_id = sqlc.arg(node_id) OR to_node_id = sqlc.arg(node_id))
+ORDER BY created_at ASC, id ASC;
+
+-- name: SearchPlanningNodes :many
+SELECT id,
+       session_id,
+       scope_id,
+       parent_node_id,
+       title,
+       problem_statement,
+       logical_form,
+       category,
+       status,
+       depth,
+       rationale,
+       utility,
+       confidence,
+       local_entropy,
+       validation_pressure,
+       created_at,
+       updated_at
+FROM planner_nodes
+WHERE session_id = sqlc.arg(session_id)
+  AND (title LIKE sqlc.arg(query_contains) OR problem_statement LIKE sqlc.arg(query_contains))
+ORDER BY
+  CASE
+    WHEN title = sqlc.arg(query_exact) THEN 0
+    WHEN title LIKE sqlc.arg(query_prefix) THEN 1
+    WHEN title LIKE sqlc.arg(query_contains) THEN 2
+    WHEN problem_statement LIKE sqlc.arg(query_contains) THEN 3
+    ELSE 4
+  END ASC,
+  title ASC,
+  id ASC
+LIMIT sqlc.arg(limit_count);

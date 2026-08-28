@@ -109,6 +109,21 @@ SELECT id FROM planner_validation_snapshots WHERE scope_id = sqlc.arg(scope_id) 
 
 -- name: ListPlanningValidationClausesBySnapshot :many
 SELECT clause_id FROM planner_validation_clauses WHERE snapshot_id = sqlc.arg(snapshot_id);
+
+-- name: QueryPlanningNodes :many
+SELECT id FROM planner_nodes WHERE session_id = sqlc.arg(session_id) LIMIT sqlc.arg(limit_count) OFFSET sqlc.arg(offset_count);
+
+-- name: CountPlanningNodes :one
+SELECT COUNT(*) AS total FROM planner_nodes WHERE session_id = sqlc.arg(session_id);
+
+-- name: GetPlanningNodeByID :one
+SELECT id FROM planner_nodes WHERE session_id = sqlc.arg(session_id) AND id = sqlc.arg(id) LIMIT 1;
+
+-- name: ListPlanningEdgesByNode :many
+SELECT id FROM planner_edges WHERE session_id = sqlc.arg(session_id) AND (from_node_id = sqlc.arg(node_id) OR to_node_id = sqlc.arg(node_id));
+
+-- name: SearchPlanningNodes :many
+SELECT id FROM planner_nodes WHERE session_id = sqlc.arg(session_id) AND title LIKE sqlc.arg(query_contains) LIMIT sqlc.arg(limit_count);
 `);
 
     expect(catalog.GetActivePlanningSessionByContext.command).toBe('one');

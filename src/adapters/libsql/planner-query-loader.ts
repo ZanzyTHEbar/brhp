@@ -32,6 +32,11 @@ export const PLANNER_QUERY_NAMES = [
   'ListPlanningFrontierSelectionsBySnapshot',
   'GetLatestPlanningValidationSnapshotByScope',
   'ListPlanningValidationClausesBySnapshot',
+  'QueryPlanningNodes',
+  'CountPlanningNodes',
+  'GetPlanningNodeByID',
+  'ListPlanningEdgesByNode',
+  'SearchPlanningNodes',
 ] as const;
 
 export type PlannerQueryName = (typeof PLANNER_QUERY_NAMES)[number];
